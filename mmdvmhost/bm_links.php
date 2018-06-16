@@ -39,7 +39,8 @@ if ( $testMMDVModeDMR == 1 ) {
   $dmrID = getConfigItem("General", "Id", $mmdvmconfigs);
 
   // Use BM API to get information about current TGs
-  $json = json_decode(file_get_contents("https://api.brandmeister.network/v1.0/repeater/?action=PROFILE&q=$dmrID", true));
+  $jsonContext = stream_context_create(array('http'=>array('timeout' => 2) )); // Add Timout
+  $json = json_decode(@file_get_contents("https://api.brandmeister.network/v1.0/repeater/?action=PROFILE&q=$dmrID", true, $jsonContext));
 
   // Set some Variable
   $bmStaticTGList = "";
@@ -51,14 +52,30 @@ if ( $testMMDVModeDMR == 1 ) {
   if ((isset($json->reflector->active)) && ($json->reflector->active != "4000")) { $bmReflectorActive = "REF".$json->reflector->active; } else { $bmReflectorActive = "None"; }
   if (isset($json->staticSubscriptions)) { $bmStaticTGListJson = $json->staticSubscriptions;
                                           foreach($bmStaticTGListJson as $staticTG) {
-                                            $bmStaticTGList .= "TG".$staticTG->talkgroup." ";
+                                            if (getConfigItem("DMR Network", "Slot1", $mmdvmconfigs) && $staticTG->slot == "1") {
+                                              $bmStaticTGList .= "TG".$staticTG->talkgroup."(".$staticTG->slot.") ";
+                                            }
+                                            else if (getConfigItem("DMR Network", "Slot2", $mmdvmconfigs) && $staticTG->slot == "2") {
+                                              $bmStaticTGList .= "TG".$staticTG->talkgroup."(".$staticTG->slot.") ";
+                                            }
+                                            else if (getConfigItem("DMR Network", "Slot1", $mmdvmconfigs) == "0" && getConfigItem("DMR Network", "Slot2", $mmdvmconfigs) && $staticTG->slot == "0") {
+                                              $bmStaticTGList .= "TG".$staticTG->talkgroup." ";
+                                            }
                                           }
                                           $bmStaticTGList = wordwrap($bmStaticTGList, 15, "<br />\n");
                                           if (preg_match('/TG/', $bmStaticTGList) == false) { $bmStaticTGList = "None"; }
                                          } else { $bmStaticTGList = "None"; }
   if (isset($json->dynamicSubscriptions)) { $bmDynamicTGListJson = $json->dynamicSubscriptions;
                                            foreach($bmDynamicTGListJson as $dynamicTG) {
-                                             $bmDynamicTGList .= "TG".$dynamicTG->talkgroup." ";
+                                             if (getConfigItem("DMR Network", "Slot1", $mmdvmconfigs) && $dynamicTG->slot == "1") {
+                                               $bmDynamicTGList .= "TG".$dynamicTG->talkgroup."(".$dynamicTG->slot.") ";
+                                             }
+                                             else if (getConfigItem("DMR Network", "Slot2", $mmdvmconfigs) && $dynamicTG->slot == "2") {
+                                               $bmDynamicTGList .= "TG".$dynamicTG->talkgroup."(".$dynamicTG->slot.") ";
+                                             }
+                                             else if (getConfigItem("DMR Network", "Slot1", $mmdvmconfigs) == "0" && getConfigItem("DMR Network", "Slot2", $mmdvmconfigs) && $dynamicTG->slot == "0") {
+                                               $bmDynamicTGList .= "TG".$dynamicTG->talkgroup." ";
+                                             }
                                            }
                                            $bmDynamicTGList = wordwrap($bmDynamicTGList, 15, "<br />\n");
                                            if (preg_match('/TG/', $bmDynamicTGList) == false) { $bmDynamicTGList = "None"; }

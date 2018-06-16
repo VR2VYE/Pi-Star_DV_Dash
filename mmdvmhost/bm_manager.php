@@ -71,7 +71,8 @@ if ( $testMMDVModeDMR == 1 ) {
         'reflector' => $targetREF,
       );
     }
-    // Buld the Query
+    // Build the Query
+    $postData = '';
     if (isset($_POST["refSubmit"])) { $postData = http_build_query($postDataREF); }
     if (isset($_POST["tgSubmit"])) { $postData = http_build_query($postDataTG); }
     $postHeaders = array(
@@ -87,10 +88,11 @@ if ( $testMMDVModeDMR == 1 ) {
       'content' => $postData,
       'password' => '',
       'success' => '',
+      'timeout' => 2,
       ),
     );
     $context = stream_context_create($opts);
-    $result = file_get_contents($bmAPIurl, false, $context);
+    $result = @file_get_contents($bmAPIurl, false, $context);
     $feeback=json_decode($result);
     // Output to the browser
     echo '<b>BrandMeister Manager</b>'."\n";
@@ -105,7 +107,7 @@ if ( $testMMDVModeDMR == 1 ) {
   else: // Do this when we are not handling post data
     if (isset($bmAPIkey)) {
       echo '<b>BrandMeister Manager</b>'."\n";
-      echo '<form action="http://'.htmlentities($_SERVER['HTTP_HOST']).htmlentities($_SERVER['PHP_SELF']).'" method="post">'."\n";
+      echo '<form action="'.htmlentities($_SERVER['PHP_SELF']).'" method="post">'."\n";
       echo '<table>
       <tr>
         <th><a class=tooltip href="#">Tools<span><b>DMR ID</b></span></a></th>

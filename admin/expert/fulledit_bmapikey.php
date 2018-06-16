@@ -33,12 +33,18 @@ require_once('../config/version.php');
 
 <?php
 //Do some file wrangling...
-exec('sudo cp /etc/mmdvmhost /tmp/bW1kdm1ob3N0DQo.tmp');
-exec('sudo chown www-data:www-data /tmp/bW1kdm1ob3N0DQo.tmp');
-exec('sudo chmod 664 /tmp/bW1kdm1ob3N0DQo.tmp');
-
+if (file_exists('/etc/bmapi.key')) {
+  exec('sudo cp /etc/bmapi.key /tmp/d39fk36sg55433gd.tmp');
+} else {
+  exec('sudo touch /tmp/d39fk36sg55433gd.tmp');
+  exec('sudo echo "[key]" > /tmp/d39fk36sg55433gd.tmp');
+  exec('sudo echo "apikey=None" >> /tmp/d39fk36sg55433gd.tmp');
+}
+exec('sudo chown www-data:www-data /tmp/d39fk36sg55433gd.tmp');
+exec('sudo chmod 664 /tmp/d39fk36sg55433gd.tmp');
+  
 //ini file to open
-$filepath = '/tmp/bW1kdm1ob3N0DQo.tmp';
+$filepath = '/tmp/d39fk36sg55433gd.tmp';
 
 //after the form submit
 if($_POST) {
@@ -51,7 +57,6 @@ if($_POST) {
 	function update_ini_file($data, $filepath) {
 		$content = "";
 
-		//parse the ini file to get the sections
 		//parse the ini file using default parse_ini_file() PHP function
 		$parsed_ini = parse_ini_file($filepath, true);
 
@@ -61,17 +66,9 @@ if($_POST) {
 			$content .= "[".$section."]\n";
 			//append the values
 			foreach($values as $key=>$value) {
-				if ($section == "DMR Network" && $key == "Options" && $value) {
-					$value = str_replace('"', "", $value);
-					$content .= $key."=\"".$value."\"\n";
-				}
-				elseif ($section == "DMR Network" && $key == "Options" && !$value) {
-					$content .= $key."= \n";
-				}
-				elseif ($value == '') { 
-                                        $content .= $key."=none\n";
-                                        }
-				else {
+				if ($value == '') { 
+          $content .= $key."=none\n";
+        } else {
 					$content .= $key."=".$value."\n";
 				}
 			}
@@ -88,18 +85,17 @@ if($_POST) {
 
 		// Updates complete - copy the working file back to the proper location
 		exec('sudo mount -o remount,rw /');				// Make rootfs writable
-		exec('sudo cp /tmp/bW1kdm1ob3N0DQo.tmp /etc/mmdvmhost');	// Move the file back
-		exec('sudo chmod 644 /etc/mmdvmhost');				// Set the correct runtime permissions
-		exec('sudo chown root:root /etc/mmdvmhost');			// Set the owner
+		exec('sudo mv /tmp/d39fk36sg55433gd.tmp /etc/bmapi.key');	// Move the file back
+		exec('sudo chmod 644 /etc/bmapi.key');				// Set the correct runtime permissions
+		exec('sudo chown root:root /etc/bmapi.key');			// Set the owner
 		exec('sudo mount -o remount,ro /');				// Make rootfs read-only
 
-		// Reload the affected daemon
-		exec('sudo systemctl restart mmdvmhost.service');		// Reload the daemon
 		return $success;
 	}
 
 //parse the ini file using default parse_ini_file() PHP function
 $parsed_ini = parse_ini_file($filepath, true);
+if (!isset($parsed_ini['key']['apikey'])) { $parsed_ini['key']['apikey'] = ""; }
 
 echo '<form action="" method="post">'."\n";
 	foreach($parsed_ini as $section=>$values) {
@@ -111,13 +107,13 @@ echo '<form action="" method="post">'."\n";
 		// note the name='' attribute it has both section and key
 		foreach($values as $key=>$value) {
 			if (($key == "Options") || ($value)) {
-				echo "<tr><td align=\"right\" width=\"30%\">$key</td><td align=\"left\"><input type=\"text\" name=\"{$section}[$key]\" value=\"$value\" /></td></tr>\n";
+				echo "<tr><td align=\"right\" width=\"30%\">$key</td><td align=\"left\"><textarea name=\"{$section}[$key]\" cols=\"60\" rows=\"3\">$value</textarea></td></tr>\n";
 			}
 			elseif (($key == "Display") && ($value == '')) {
-				echo "<tr><td align=\"right\" width=\"30%\">$key</td><td align=\"left\"><input type=\"text\" name=\"{$section}[$key]\" value=\"None\" /></td></tr>\n";
+				echo "<tr><td align=\"right\" width=\"30%\">$key</td><td align=\"left\"><textarea name=\"{$section}[$key]\" cols=\"60\" rows=\"3\">$value</textarea></td></tr>\n";
 			}
 			else {
-				echo "<tr><td align=\"right\" width=\"30%\">$key</td><td align=\"left\"><input type=\"text\" name=\"{$section}[$key]\" value=\"0\" /></td></tr>\n";			
+				echo "<tr><td align=\"right\" width=\"30%\">$key</td><td align=\"left\"><textarea name=\"{$section}[$key]\" cols=\"60\" rows=\"3\">$value</textarea></td></tr>\n";			
 			}
 		}
 		echo "</table>\n";

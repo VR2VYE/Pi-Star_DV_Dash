@@ -1,20 +1,20 @@
 <?php
 // Load the language support
-require_once('config/language.php');
+require_once('../config/language.php');
 // Load the Pi-Star Release file
 $pistarReleaseConfig = '/etc/pistar-release';
 $configPistarRelease = array();
 $configPistarRelease = parse_ini_file($pistarReleaseConfig, true);
 // Load the Version Info
-require_once('config/version.php');
+require_once('../config/version.php');
 
 // Sanity Check that this file has been opened correctly
-if ($_SERVER["PHP_SELF"] == "/admin/update.php") {
+if ($_SERVER["PHP_SELF"] == "/admin/expert/upgrade.php") {
 
   if (!isset($_GET['ajax'])) {
-    system('sudo touch /var/log/pi-star/pi-star_update.log > /dev/null 2>&1 &');
-    system('sudo echo "" > /var/log/pi-star/pi-star_update.log > /dev/null 2>&1 &');
-    system('sudo /usr/local/sbin/pistar-update > /dev/null 2>&1 &');
+    system('sudo touch /var/log/pi-star/pi-star_upgrade.log > /dev/null 2>&1 &');
+    system('sudo echo "" > /var/log/pi-star/pi-star_upgrade.log > /dev/null 2>&1 &');
+    system('sudo /usr/local/sbin/pistar-upgrade > /dev/null 2>&1 &');
     }
 
   // Sanity Check Passed.
@@ -23,8 +23,8 @@ if ($_SERVER["PHP_SELF"] == "/admin/update.php") {
 
   if (!isset($_GET['ajax'])) {
     //unset($_SESSION['update_offset']);
-    if (file_exists('/var/log/pi-star/pi-star_update.log')) {
-      $_SESSION['update_offset'] = filesize('/var/log/pi-star/pi-star_update.log');
+    if (file_exists('/var/log/pi-star/pi-star_upgrade.log')) {
+      $_SESSION['update_offset'] = filesize('/var/log/pi-star/pi-star_upgrade.log');
     } else {
       $_SESSION['update_offset'] = 0;
     }
@@ -32,11 +32,11 @@ if ($_SERVER["PHP_SELF"] == "/admin/update.php") {
   
   if (isset($_GET['ajax'])) {
     //session_start();
-    if (!file_exists('/var/log/pi-star/pi-star_update.log')) {
+    if (!file_exists('/var/log/pi-star/pi-star_upgrade.log')) {
       exit();
     }
     
-    $handle = fopen('/var/log/pi-star/pi-star_update.log', 'rb');
+    $handle = fopen('/var/log/pi-star/pi-star_upgrade.log', 'rb');
     if (isset($_SESSION['update_offset'])) {
       fseek($handle, 0, SEEK_END);
       if ($_SESSION['update_offset'] > ftell($handle)) //log rotated/truncated
@@ -69,13 +69,13 @@ if ($_SERVER["PHP_SELF"] == "/admin/update.php") {
 <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
     <meta http-equiv="Expires" content="0" />
     <title>Pi-Star - <?php echo $lang['digital_voice']." ".$lang['dashboard']." - ".$lang['update'];?></title>
-    <link rel="stylesheet" type="text/css" href="css/pistar-css.php" />
+    <link rel="stylesheet" type="text/css" href="../css/pistar-css.php" />
     <script type="text/javascript" src="http://code.jquery.com/jquery-1.8.2.min.js"></script>
     <script type="text/javascript" src="http://creativecouple.github.com/jquery-timing/jquery-timing.min.js"></script>
     <script type="text/javascript">
     $(function() {
       $.repeat(1000, function() {
-        $.get('/admin/update.php?ajax', function(data) {
+        $.get('/admin/expert/upgrade.php?ajax', function(data) {
           if (data.length < 1) return;
           var objDiv = document.getElementById("tail");
           var isScrolledToBottom = objDiv.scrollHeight - objDiv.clientHeight <= objDiv.scrollTop + 1;
@@ -89,21 +89,11 @@ if ($_SERVER["PHP_SELF"] == "/admin/update.php") {
   </head>
   <body>
   <div class="container">
-  <div class="header">
-  <div style="font-size: 8px; text-align: right; padding-right: 8px;">Pi-Star:<?php echo $configPistarRelease['Pi-Star']['Version']?> / Dashboard:<?php echo $version; ?></div>
-  <h1>Pi-Star - <?php echo $lang['digital_voice']." ".$lang['dashboard']." - ".$lang['update'];?></h1>
-  <p style="padding-right: 5px; text-align: right; color: #ffffff;">
-    <a href="/" style="color: #ffffff;"><?php echo $lang['dashboard'];?></a> |
-    <a href="/admin/" style="color: #ffffff;"><?php echo $lang['admin'];?></a> |
-    <a href="/admin/power.php" style="color: #ffffff;"><?php echo $lang['power'];?></a> |
-    <a href="/admin/config_backup.php" style="color: #ffffff;"><?php echo $lang['backup_restore'];?></a> |
-    <a href="/admin/configure.php" style="color: #ffffff;"><?php echo $lang['configuration'];?></a>
-  </p>
-  </div>
+  <?php include './header-menu.inc'; ?>
   <div class="contentwide">
   <table width="100%">
-  <tr><th>Update Running</th></tr>
-  <tr><td align="left"><div id="tail">Starting update, please wait...<br /></div></td></tr>
+  <tr><th>Upgrade Running</th></tr>
+  <tr><td align="left"><div id="tail">Starting upgrade, please wait...<br /></div></td></tr>
   </table>
   </div>
   <div class="footer">

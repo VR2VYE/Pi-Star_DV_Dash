@@ -33,23 +33,20 @@ require_once('../config/version.php');
   <?php
 if(isset($_POST['data'])) {
         // File Wrangling
-        exec('sudo cp /etc/pistar-remote /tmp/fmehg65934eg.tmp');
-        exec('sudo chown www-data:www-data /tmp/fmehg65934eg.tmp');
-        exec('sudo chmod 664 /tmp/fmehg65934eg.tmp');
+        exec('sudo cp /usr/local/etc/RSSI.dat /tmp/yAw432GHs5.tmp');
+        exec('sudo chown www-data:www-data /tmp/yAw432GHs5.tmp');
+        exec('sudo chmod 664 /tmp/yAw432GHs5.tmp');
 
         // Open the file and write the data
-        $filepath = '/tmp/fmehg65934eg.tmp';
+        $filepath = '/tmp/yAw432GHs5.tmp';
         $fh = fopen($filepath, 'w');
         fwrite($fh, $_POST['data']);
         fclose($fh);
         exec('sudo mount -o remount,rw /');
-        exec('sudo cp /tmp/fmehg65934eg.tmp /etc/pistar-remote');
-        exec('sudo chmod 644 /etc/pistar-remote');
-        exec('sudo chown root:root /etc/pistar-remote');
+        exec('sudo cp /tmp/yAw432GHs5.tmp /usr/local/etc/RSSI.dat');
+        exec('sudo chmod 644 /usr/local/etc/RSSI.dat');
+        exec('sudo chown root:root /usr/local/etc/RSSI.dat');
         exec('sudo mount -o remount,ro /');
-  
-        // Reload the affected daemon
-		    exec('sudo systemctl restart pistar-remote.service');		    // Reload the daemon
 
         // Re-open the file and read it
         $fh = fopen($filepath, 'r');
@@ -57,12 +54,12 @@ if(isset($_POST['data'])) {
 
 } else {
         // File Wrangling
-        exec('sudo cp /etc/pistar-remote /tmp/fmehg65934eg.tmp');
-        exec('sudo chown www-data:www-data /tmp/fmehg65934eg.tmp');
-        exec('sudo chmod 664 /tmp/fmehg65934eg.tmp');
+        exec('sudo cp /usr/local/etc/RSSI.dat /tmp/yAw432GHs5.tmp');
+        exec('sudo chown www-data:www-data /tmp/yAw432GHs5.tmp');
+        exec('sudo chmod 664 /tmp/yAw432GHs5.tmp');
 
         // Open the file and read it
-        $filepath = '/tmp/fmehg65934eg.tmp';
+        $filepath = '/tmp/yAw432GHs5.tmp';
         $fh = fopen($filepath, 'r');
         $theData = fread($fh, filesize($filepath));
 }

@@ -2,7 +2,7 @@
 function getMMDVMConfig() {
 	// loads MMDVM.ini into array for further use
 	$conf = array();
-	if ($configs = fopen(MMDVMINIPATH."/".MMDVMINIFILENAME, 'r')) {
+	if ($configs = @fopen(MMDVMINIPATH."/".MMDVMINIFILENAME, 'r')) {
 		while ($config = fgets($configs)) {
 			array_push($conf, trim ( $config, " \t\n\r\0\x0B"));
 		}
@@ -14,7 +14,7 @@ function getMMDVMConfig() {
 function getYSFGatewayConfig() {
 	// loads MMDVM.ini into array for further use
 	$conf = array();
-	if ($configs = fopen(YSFGATEWAYINIPATH."/".YSFGATEWAYINIFILENAME, 'r')) {
+	if ($configs = @fopen(YSFGATEWAYINIPATH."/".YSFGATEWAYINIFILENAME, 'r')) {
 		while ($config = fgets($configs)) {
 			array_push($conf, trim ( $config, " \t\n\r\0\x0B"));
 		}
@@ -26,7 +26,7 @@ function getYSFGatewayConfig() {
 function getP25GatewayConfig() {
 	// loads MMDVM.ini into array for further use
 	$conf = array();
-	if ($configs = fopen(P25GATEWAYINIPATH."/".P25GATEWAYINIFILENAME, 'r')) {
+	if ($configs = @fopen(P25GATEWAYINIPATH."/".P25GATEWAYINIFILENAME, 'r')) {
 		while ($config = fgets($configs)) {
 			array_push($conf, trim ( $config, " \t\n\r\0\x0B"));
 		}
@@ -35,10 +35,23 @@ function getP25GatewayConfig() {
 	return $conf;
 }
 
-function getCallsign($mmdvmconfigs) {
-	// returns Callsign from MMDVM-config
-	return getConfigItem("General", "Callsign", $mmdvmconfigs);
+function getNXDNGatewayConfig() {
+	// loads MMDVM.ini into array for further use
+	$conf = array();
+	if ($configs = @fopen('/etc/nxdngateway', 'r')) {
+		while ($config = fgets($configs)) {
+			array_push($conf, trim ( $config, " \t\n\r\0\x0B"));
+		}
+		fclose($configs);
+	}
+	return $conf;
 }
+
+// Not used - to be removed
+//function getCallsign($mmdvmconfigs) {
+//	// returns Callsign from MMDVM-config
+//	return getConfigItem("General", "Callsign", $mmdvmconfigs);
+//}
 
 function getConfigItem($section, $key, $configs) {
 	// retrieves the corresponding config-entry within a [section]
@@ -84,8 +97,7 @@ function showMode($mode, $mmdvmconfigs) {
 			}
 		}
 		elseif ($mode == "NXDN Network") {
-			// if (isProcessRunning("NXDNGateway")) {
-			if (isProcessRunning("MMDVMHost")) {
+			if (isProcessRunning("NXDNGateway")) {
 				echo "<td style=\"background:#0b0; color:#030; width:50%;\">";
 			} else {
 				echo "<td style=\"background:#b00; color:#500; width:50%;\">";
@@ -117,8 +129,8 @@ function showMode($mode, $mmdvmconfigs) {
 			}
 		}
 	}
-	elseif ( ($mode == "YSF2DMR") && (getEnabled("System Fusion", $mmdvmconfigs) == 1) ) {
-		if ( (isProcessRunning("YSF2DMR")) && (isProcessRunning("MMDVMHost")) ) {
+	elseif ( ($mode == "YSF XMode") && (getEnabled("System Fusion", $mmdvmconfigs) == 1) ) {
+		if ( (isProcessRunning("MMDVMHost")) && (isProcessRunning("YSF2DMR") || isProcessRunning("YSF2NXDN") || isProcessRunning("YSF2P25")) ) {
 			echo "<td style=\"background:#0b0; color:#030; width:50%;\">";
 		} else {
 			echo "<td style=\"background:#606060; color:#b0b0b0;\">";
@@ -131,11 +143,41 @@ function showMode($mode, $mmdvmconfigs) {
 			echo "<td style=\"background:#606060; color:#b0b0b0;\">";
 		}
 	}
+	elseif ( ($mode == "YSF2NXDN Network") && (getEnabled("System Fusion", $mmdvmconfigs) == 1) ) {
+		if (isProcessRunning("YSF2NXDN")) {
+			echo "<td style=\"background:#0b0; color:#030; width:50%;\">";
+		} else {
+			echo "<td style=\"background:#606060; color:#b0b0b0;\">";
+		}
+	}
+	elseif ( ($mode == "YSF2P25 Network") && (getEnabled("System Fusion", $mmdvmconfigs) == 1) ) {
+		if (isProcessRunning("YSF2P25")) {
+			echo "<td style=\"background:#0b0; color:#030; width:50%;\">";
+		} else {
+			echo "<td style=\"background:#606060; color:#b0b0b0;\">";
+		}
+	}
+	elseif ( ($mode == "DMR2NXDN Network") && (getEnabled("DMR", $mmdvmconfigs) == 1) ) {
+		if (isProcessRunning("DMR2NXDN")) {
+			echo "<td style=\"background:#0b0; color:#030; width:50%;\">";
+		} else {
+			echo "<td style=\"background:#606060; color:#b0b0b0;\">";
+		}
+	}
+	elseif ( ($mode == "DMR2YSF Network") && (getEnabled("DMR", $mmdvmconfigs) == 1) ) {
+		if (isProcessRunning("DMR2YSF")) {
+			echo "<td style=\"background:#0b0; color:#030; width:50%;\">";
+		} else {
+			echo "<td style=\"background:#606060; color:#b0b0b0;\">";
+		}
+	}
 	else {
 		echo "<td style=\"background:#606060; color:#b0b0b0;\">";
     }
     $mode = str_replace("System Fusion", "YSF", $mode);
     $mode = str_replace("Network", "Net", $mode);
+    if (strpos($mode, 'YSF2') > -1) { $mode = str_replace(" Net", "", $mode); }
+    if (strpos($mode, 'DMR2') > -1) { $mode = str_replace(" Net", "", $mode); }
     echo $mode."</td>\n";
 }
 
@@ -167,20 +209,27 @@ function getYSFGatewayLog() {
 	$logLines1 = array();
 	$logLines2 = array();
 	if (file_exists(YSFGATEWAYLOGPATH."/".YSFGATEWAYLOGPREFIX."-".gmdate("Y-m-d").".log")) {
-		$logPath = YSFGATEWAYLOGPATH."/".YSFGATEWAYLOGPREFIX."-".gmdate("Y-m-d").".log";
-		$logLines1 = explode("\n", `egrep -h "repeater|Starting|Disconnect|Connect|Automatic|Disconnecting|Reverting|Linked" $logPath | tail -250`);
+		$logPath1 = YSFGATEWAYLOGPATH."/".YSFGATEWAYLOGPREFIX."-".gmdate("Y-m-d").".log";
+		//$logLines1 = explode("\n", `egrep -h "repeater|Starting|Opening YSF|Disconnect|Connect|Automatic|Disconnecting|Reverting|Linked" $logPath1 | tail -250`);
+		$logLines1 = preg_split('/\r\n|\r|\n/', `grep -E "onnection to|onnect to|ink|isconnect|Opening YSF network" $logPath1 | sed '/Linked to MMDVM/d' | tail -1`);
 	}
-	$logLines1 = array_slice($logLines1, -250);
-	if (sizeof($logLines1) < 250) {
+	$logLines1 = array_filter($logLines1);
+	//$logLines1 = array_slice($logLines1, -250);
+	//if (sizeof($logLines1) < 250) {
+	if (sizeof($logLines1) == 0) {
 		if (file_exists(YSFGATEWAYLOGPATH."/".YSFGATEWAYLOGPREFIX."-".gmdate("Y-m-d", time() - 86340).".log")) {
-			$logPath = YSFGATEWAYLOGPATH."/".YSFGATEWAYLOGPREFIX."-".gmdate("Y-m-d", time() - 86340).".log";
-			$logLines2 = explode("\n", `egrep -h "repeater|Starting|Disconnect|Connect|Automatic|Disconnecting|Reverting|Linked" $logPath | tail -250`);
+			$logPath2 = YSFGATEWAYLOGPATH."/".YSFGATEWAYLOGPREFIX."-".gmdate("Y-m-d", time() - 86340).".log";
+			//$logLines2 = explode("\n", `egrep -h "repeater|Starting|Opening YSF|Disconnect|Connect|Automatic|Disconnecting|Reverting|Linked" $logPath2 | tail -250`);
+			$logLines1 = preg_split('/\r\n|\r|\n/', `grep -E "onnection to|onnect to|ink|isconnect|Opening YSF network" $logPath2 | sed '/Linked to MMDVM/d' | tail -1`);
 		}
+		$logLines2 = array_filter($logLines2);
 	}
-	$logLines2 = array_slice($logLines2, -250);
-	$logLines = $logLines1 + $logLines2;
-	$logLines = array_slice($logLines, -250);
-	return $logLines;
+	//$logLines2 = array_slice($logLines2, -250);
+	//$logLines = $logLines1 + $logLines2;
+	//$logLines = array_slice($logLines, -250);
+	//return $logLines;
+	if (sizeof($logLines1) == 0) { $logLines = $logLines2; } else { $logLines = $logLines1; }
+        return array_filter($logLines);
 }
 
 function getP25GatewayLog() {
@@ -189,33 +238,42 @@ function getP25GatewayLog() {
 	$logLines1 = array();
 	$logLines2 = array();
         if (file_exists(P25GATEWAYLOGPATH."/".P25GATEWAYLOGPREFIX."-".gmdate("Y-m-d").".log")) {
-                if ($log = fopen(P25GATEWAYLOGPATH."/".P25GATEWAYLOGPREFIX."-".gmdate("Y-m-d").".log", 'r')) {
-                        while ($logLine = fgets($log)) {
-                                if (startsWith($logLine,"M:")) {
-                                        array_push($logLines1, $logLine);
-                                }
-                        }
-                        fclose($log);
-                }
+		$logPath1 = P25GATEWAYLOGPATH."/".P25GATEWAYLOGPREFIX."-".gmdate("Y-m-d").".log";
+		$logLines1 = preg_split('/\r\n|\r|\n/', `egrep -h "ink|Starting" $logPath1 | cut -d" " -f2- | tail -1`);
         }
-	$logLines1 = array_slice($logLines1, -250);
-        if (sizeof($logLines1) < 250) {
+	$logLines1 = array_filter($logLines1);
+        if (sizeof($logLines1) == 0) {
                 if (file_exists(P25GATEWAYLOGPATH."/".P25GATEWAYLOGPREFIX."-".gmdate("Y-m-d", time() - 86340).".log")) {
-                        if ($log = fopen(P25GATEWAYLOGPATH."/".P25GATEWAYLOGPREFIX."-".gmdate("Y-m-d", time() - 86340).".log", 'r')) {
-                                while ($logLine = fgets($log)) {
-                                        if (startsWith($logLine,"M:")) {
-                                        array_push($logLines2, $logLine);
-                                        }
-                                }
-                                fclose($log);
-                        }
+                        $logPath2 = P25GATEWAYLOGPATH."/".P25GATEWAYLOGPREFIX."-".gmdate("Y-m-d", time() - 86340).".log";
+			$logLines2 = preg_split('/\r\n|\r|\n/', `egrep -h "ink|Starting" $logPath2 | cut -d" " -f2- | tail -1`);
                 }
+		$logLines2 = array_filter($logLines2);
         }
-	$logLines2 = array_slice($logLines2, -250);
-	$logLines = $logLines1 + $logLines2;
-	$logLines = array_slice($logLines, -250);
-        return $logLines;
+	if (sizeof($logLines1) == 0) { $logLines = $logLines2; } else { $logLines = $logLines1; }
+        return array_filter($logLines);
 }
+
+function getNXDNGatewayLog() {
+        // Open Logfile and copy loglines into LogLines-Array()
+        $logLines = array();
+	$logLines1 = array();
+	$logLines2 = array();
+        if (file_exists("/var/log/pi-star/NXDNGateway-".gmdate("Y-m-d").".log")) {
+		$logPath1 = "/var/log/pi-star/NXDNGateway-".gmdate("Y-m-d").".log";
+		$logLines1 = preg_split('/\r\n|\r|\n/', `egrep -h "ink|Starting" $logPath1 | cut -d" " -f2- | tail -1`);
+        }
+	$logLines1 = array_filter($logLines1);
+        if (sizeof($logLines1) == 0) {
+                if (file_exists("/var/log/pi-star/NXDNGateway-".gmdate("Y-m-d", time() - 86340).".log")) {
+			$logPath2 = "/var/log/pi-star/NXDNGateway-".gmdate("Y-m-d", time() - 86340).".log";
+			$logLines2 = preg_split('/\r\n|\r|\n/', `egrep -h "ink|Starting" $logPath2 | cut -d" " -f2- | tail -1`);
+                }
+		$logLines2 = array_filter($logLines2);
+        }
+	if (sizeof($logLines1) == 0) { $logLines = $logLines2; } else { $logLines = $logLines1; }
+        return array_filter($logLines);
+}
+
 
 // 00000000001111111111222222222233333333334444444444555555555566666666667777777777888888888899999999990000000000111111111122
 // 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901
@@ -227,7 +285,9 @@ function getP25GatewayLog() {
 // I: 2017-12-26 20:04:04.069 MMDVM protocol version: 1, description: ZUMspot-v1.0.3 20171226 ADF7021 FW by CA6JAU GitID #bfb82b4
 // I: 2017-12-26 19:31:10.880 MMDVM protocol version: 1, description: MMDVM_HS_Hat-v1.0.3 20171226 ADF7021 FW by CA6JAU GitID #bfb82b4
 // I: 2017-12-26 18:31:17.960 MMDVM protocol version: 1, description: MMDVM_HS-v1.0.3 20171226 ADF7021 FW by CA6JAU GitID #bfb82b4
+// I: 2018-05-22 10:22:12.137 MMDVM protocol version: 1, description: MMDVM_HS_Dual_Hat-v1.3.6 20180521 dual ADF7021 FW by CA6JAU GitID #bd6217a
 // I: 2018-03-06 12:12:14.960 MMDVM protocol version: 1, description: Nano_hotSPOT-v1.3.3 20180224 ADF7021 FW by CA6JAU GitID #62323e7
+// I: 2018-03-06 12:12:14.960 MMDVM protocol version: 1, description: Nano-Spot-v1.3.3 20180224 ADF7021 FW by CA6JAU GitID #62323e7
 
 function getDVModemFirmware() {
 	$logMMDVMNow = MMDVMLOGPATH."/".MMDVMLOGPREFIX."-".gmdate("Y-m-d").".log";
@@ -261,15 +321,22 @@ function getDVModemFirmware() {
 		if (strpos($logLine, 'description: MMDVM_HS_Hat-')) {
 			$modemFirmware = "HS_Hat:".strtok(substr($logLine, 80, 12), ' ');
 		}
+		if (strpos($logLine, 'description: MMDVM_HS_Dual_Hat-')) {
+			$modemFirmware = "HS_Hat:".strtok(substr($logLine, 85, 12), ' ');
+		}
 		if (strpos($logLine, 'description: MMDVM_HS-')) {
 			$modemFirmware = "MMDVM_HS:".strtok(substr($logLine, 76, 12), ' ');
 		}
 		if (strpos($logLine, 'description: Nano_hotSPOT-')) {
 			$modemFirmware = "MMDVM_HS:".strtok(substr($logLine, 80, 12), ' ');
 		}
+		if (strpos($logLine, 'description: Nano-Spot-')) {
+			$modemFirmware = "NanoSpot:".strtok(substr($logLine, 77, 12), ' ');
+		}
 	}
 	return $modemFirmware;
 }
+
 // 00000000001111111111222222222233333333334444444444555555555566666666667777777777888888888899999999990000000000111111111122
 // 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901
 // M: 2016-04-29 00:15:00.013 D-Star, received network header from DG9VH   /ZEIT to CQCQCQ   via DCS002 S
@@ -444,7 +511,7 @@ function getHeardList($logLines) {
 				}
 			}
 		}
-		
+
 		$timestamp = substr($logLine, 3, 19);
 		$mode = substr($logLine, 27, strpos($logLine,",") - 27);
 		$callsign2 = substr($logLine, strpos($logLine,"from") + 5, strpos($logLine,"to") - strpos($logLine,"from") - 6);
@@ -453,19 +520,19 @@ function getHeardList($logLines) {
 			$callsign = substr($callsign2, 0, strpos($callsign2,"/"));
 		}
 		$callsign = trim($callsign);
-		
+
 		$id ="";
 		if ($mode == "D-Star") {
 			$id = substr($callsign2, strpos($callsign2,"/") + 1);
 		}
-		
+
 		$target = substr($logLine, strpos($logLine, "to") + 3);
 		//$target = preg_replace('!\s+!', ' ', $target);
 		$source = "RF";
 		if (strpos($logLine,"network") > 0 ) {
 			$source = "Net";
 		}
-		
+
 		switch ($mode) {
 			case "D-Star":
 				$duration	= $dstarduration;
@@ -493,19 +560,22 @@ function getHeardList($logLines) {
 				$target		= preg_replace('!\s+!', ' ', $target);
                 		break;
 			case "P25":
+				if ($source == "Net" && $target == "TG 10") {$callsign = "PARROT";}
+				if ($source == "Net" && $callsign == "10999") {$callsign = "MMDVM";}
                 		$duration	= $p25duration;
                 		$loss		= $p25loss;
                 		$ber		= $p25ber;
 				$rssi		= $p25rssi;
                 		break;
 			case "NXDN":
+				if ($source == "Net" && $target == "TG 10") {$callsign = "PARROT";}
                 		$duration	= $nxdnduration;
                 		$loss		= $nxdnloss;
                 		$ber		= $nxdnber;
 				$rssi		= $nxdnrssi;
                 		break;
 		}
-		
+
 		// Callsign or ID should be less than 11 chars long, otherwise it could be errorneous
 		if ( strlen($callsign) < 11 ) {
 			array_push($heardList, array($timestamp, $mode, $callsign, $id, $target, $source, $duration, $loss, $ber, $rssi));
@@ -593,6 +663,11 @@ function getActualMode($metaLastHeard, $mmdvmconfigs) {
 		}
 		$timestamp->add(new DateInterval('PT' . $hangtime . 'S'));
 	}
+	if ($listElem[6] != null) { //if terminated, hangtime counts after end of transmission
+		$timestamp->add(new DateInterval('PT' . ceil($listElem[6]) . 'S'));
+	} else { //if not terminated, always return mode
+		return $mode;
+	}
 	if ($now->format('U') > $timestamp->format('U')) {
 		return "idle";
 	} else {
@@ -605,7 +680,6 @@ function getDSTARLinks() {
 	if (filesize(LINKLOGPATH."/Links.log") == 0) {
 		return "not linked";
 	}
-//	$out = "<table>";
 	if ($linkLog = fopen(LINKLOGPATH."/Links.log",'r')) {
 		while ($linkLine = fgets($linkLog)) {
 			$linkDate	= "&nbsp;";
@@ -647,12 +721,9 @@ function getDSTARLinks() {
 				$linkDest	= $linx[4][0];
 				$linkDir	= $linx[5][0];
 			}
-//MW0MWZ Mods		$out .= "<tr><td>" . $linkSource . "</td><td>&nbsp;" . $protocol . "-link</td><td>&nbsp;to&nbsp;</td><td>" . $linkDest . "</td><td>&nbsp;" . $linkDir . "</td></tr>";
 			$out = "Linked to <b>" . $linkDest . "</b><br />\n(" . $protocol . " " . $linkDir . ")";
 		}
 	}
-//	$out .= "</table>";
-
 	fclose($linkLog);
 	return $out;
 }
@@ -681,6 +752,12 @@ function getActualLink($logLines, $mode) {
 					$to = trim(substr($logLine, strpos($logLine,"to") + 3));
 				}
 				if ($to !== "") {
+					if (substr($to, 0, 3) !== 'TG ') {
+						continue;
+					}
+					if ($to === "TG 4000") {
+						return "No TG";
+					}
 					if (strpos($to, ',') !== false) {
 						$to = substr($to, 0, strpos($to, ','));
 					}
@@ -688,7 +765,7 @@ function getActualLink($logLines, $mode) {
 				}
 	        	}
 		}
-		return "not linked";
+		return "No TG";
         break;
     case "DMR Slot 2":
         foreach ($logLines as $logLine) {
@@ -700,6 +777,12 @@ function getActualLink($logLines, $mode) {
 					$to = trim(substr($logLine, strpos($logLine,"to") + 3));
 				}
 				if ($to !== "") {
+					if (substr($to, 0, 3) !== 'TG ') {
+						continue;
+					}
+					if ($to === "TG 4000") {
+						return "No TG";
+					}
 					if (strpos($to, ',') !== false) {
 						$to = substr($to, 0, strpos($to, ','));
 					}
@@ -707,27 +790,38 @@ function getActualLink($logLines, $mode) {
 				}
         		}
 		}
-		return "not linked";
+		return "No TG";
         break;
 
     case "YSF":
 	// 00000000001111111111222222222233333333334444444444555555555566666666667777777777888888888899999999990000000000111111111122
 	// 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901
-	// M: 2016-09-25 16:08:05.811 Connect to 62829 has been requested by DG9VH
-	// M: 2016-10-01 17:52:36.586 Automatic connection to 62829
+	// M: 0000-00-00 00:00:00.000 Connect to 62829 has been requested by M1ABC
+	// M: 0000-00-00 00:00:00.000 Automatic connection to 62829
 	// New YSFGateway Format
-	// M: 2018-03-06 15:36:06.344 Linked to GB SOUTH WEST
-	// M: 2018-03-06 15:36:06.302 Automatic (re-)connection to 16710 - "GB SOUTH WEST   "  
-		
+	// M: 0000-00-00 00:00:00.000 Opening YSF network connection
+	// M: 0000-00-00 00:00:00.000 Automatic (re-)connection to 16710 - "GB SOUTH WEST   "
+	// M: 0000-00-00 00:00:00.000 Automatic (re-)connection to FCS00290
+	// M: 0000-00-00 00:00:00.000 Linked to GB SOUTH WEST   
+	// M: 0000-00-00 00:00:00.000 Linked to FCS002-90
+	// M: 0000-00-00 00:00:00.000 Disconnect via DTMF has been requested by M1ABC
+	// M: 0000-00-00 00:00:00.000 Connect to 00003 - "YSF2NXDN        " has been requested by M1ABC
+	// M: 0000-00-00 00:00:00.000 Link has failed, polls lost
+
          if (isProcessRunning("YSFGateway")) {
-         	$to = "";
+            $to = "";
             foreach($logLines as $logLine) {
-               //$to = "";
-	       if ( (strpos($logLine,"Linked to")) && (!strpos($logLine,"Linked to MMDVM")) ) {
-                  $to = substr($logLine, 37, 15); 
+               if ( (strpos($logLine,"Linked to")) && (!strpos($logLine,"Linked to MMDVM")) ) {
+                  $to = trim(substr($logLine, 37, 16));
+		  if (substr($to, 0, 3) === "FCS") { $to = str_replace(' ', '', str_replace('-', '', $to)); }
                }
-	       if (strpos($logLine,"Automatic (re-)connection to")) {
-                  $to = substr($logLine, 56, 5);
+               if (strpos($logLine,"Automatic (re-)connection to")) {
+		  if (strpos($logLine,"Automatic (re-)connection to FCS")) {
+			$to = substr($logLine, 56, 8);
+		  }
+		  else {
+                  	$to = substr($logLine, 56, 5);
+		  }
                }
                if (strpos($logLine,"Connect to")) {
                   $to = substr($logLine, 38, 5);
@@ -735,14 +829,20 @@ function getActualLink($logLines, $mode) {
                if (strpos($logLine,"Automatic connection to")) {
                   $to = substr($logLine, 51, 5);
                }
-               if ($to !== "") {
-                  return $to;
+               if (strpos($logLine,"Disconnect via DTMF")) {
+                  $to = "not linked";
                }
-               if (strpos($logLine,"Starting YSFGateway")) {
+               if (strpos($logLine,"Opening YSF network connection")) {
+                  $to = "not linked";
+               }
+	       if (strpos($logLine,"Link has failed")) {
                   $to = "not linked";
                }
                if (strpos($logLine,"DISCONNECT Reply")) {
                   $to = "not linked";
+               }
+               if ($to !== "") {
+                  return $to;
                }
             }
             return "not linked";
@@ -751,120 +851,166 @@ function getActualLink($logLines, $mode) {
          }
          break;
 
+     case "NXDN":
+        // 00000000001111111111222222222233333333334444444444555555555566666666667777777777888888888899999999990000000000111111111122
+        // 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901
+        // 2000-01-01 00:00:00.000 Linked at startup to reflector 65000
+        // 2000-01-01 00:00:00.000 Unlinked from reflector 10100 by M1ABC
+        // 2000-01-01 00:00:00.000 Linked to reflector 10200 by M1ABC
+        // 2000-01-01 00:00:00.000 No response from 10200, unlinking
+        if (isProcessRunning("NXDNGateway")) {
+            foreach($logLines as $logLine) {
+               $to = "";
+               if (strpos($logLine,"Linked to")) {
+                  $to = preg_replace('/[^0-9]/', '', substr($logLine, 44, 5));
+                  $to = preg_replace('/[^0-9]/', '', $to);
+                  return "Linked to: TG".$to;
+               }
+               if (strpos($logLine,"Linked at start")) {
+                  $to = preg_replace('/[^0-9]/', '', substr($logLine, 55, 5));
+                  $to = preg_replace('/[^0-9]/', '', $to);
+                  return "Linked to: TG".$to;
+               }
+	       if (strpos($logLine,"Starting NXDNGateway")) {
+                  return "Not Linked";
+               }
+               if (strpos($logLine,"unlinking")) {
+                  return "Not Linked";
+               }
+               if (strpos($logLine,"Unlinked from")) {
+                  return "Not Linked";
+               }
+            }
+        } else {
+            return "Service Not Started";
+        }
+        break;
+
     case "P25":
 	// 00000000001111111111222222222233333333334444444444555555555566666666667777777777888888888899999999990000000000111111111122
 	// 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901
-	// M: 2000-01-01 00:00:00.000 Linked at startup to reflector 10100
-	// M: 2000-01-01 00:00:00.000 Unlinked from reflector 10100 by M1ABC
-	// M: 2000-01-01 00:00:00.000 Linked to reflector 10200 by M1ABC
+	// 2000-01-01 00:00:00.000 Linked at startup to reflector 10100
+	// 2000-01-01 00:00:00.000 Unlinked from reflector 10100 by M1ABC
+	// 2000-01-01 00:00:00.000 Linked to reflector 10200 by M1ABC
+	// 2000-01-01 00:00:00.000 No response from 10200, unlinking
 	if (isProcessRunning("P25Gateway")) {
 	    foreach($logLines as $logLine) {
                $to = "";
                if (strpos($logLine,"Linked to")) {
-		  $to = preg_replace('/[^0-9]/', '', substr($logLine, 47, 5));
+		  $to = preg_replace('/[^0-9]/', '', substr($logLine, 44, 5));
 		  $to = preg_replace('/[^0-9]/', '', $to);
 		  return "Linked to: TG".$to;
                }
                if (strpos($logLine,"Linked at startup to")) {
-		  $to = preg_replace('/[^0-9]/', '', substr($logLine, 58, 5));
+		  $to = preg_replace('/[^0-9]/', '', substr($logLine, 55, 5));
 		  $to = preg_replace('/[^0-9]/', '', $to);
 		  return "Linked to: TG".$to;
                }
-               if (strpos($logLine,"Starting P25Gateway")) {
-		  return "Not Linked";
+	       if (strpos($logLine,"Starting P25Gateway")) {
+                  return "Not Linked";
+               }
+	       if (strpos($logLine,"unlinking")) {
+                  return "Not Linked";
                }
                if (strpos($logLine,"Unlinked")) {
                   return "Not Linked";
                }
 	    }
-	}
-	break;		
+	} else {
+            return "Service Not Started";
+        }
+	break;
 	}
 	return "Service Not Started";
 }
 
 function getActualReflector($logLines, $mode) {
-	// returns actual link state of specific mode
-	//M: 2016-05-02 07:04:10.504 D-Star link status set to "Verlinkt zu DCS002 S"
-	//M: 2016-04-03 16:16:18.638 DMR Slot 2, received network voice header from 4000 to 2625094
-	//M: 2016-04-03 19:30:03.099 DMR Slot 2, received network voice header from 4020 to 2625094
-	//array_multisort($logLines,SORT_DESC);
-	
-    foreach ($logLines as $logLine) {
-		if(substr($logLine, 27, strpos($logLine,",") - 27) == "DMR Slot 2") {
+	// 00000000001111111111222222222233333333334444444444555555555566666666667777777777888888888899999999990000000000111111111122
+	// 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901
+	// M: 2016-05-02 07:04:10.504 D-Star link status set to "Verlinkt zu DCS002 S"
+	// M: 2016-04-03 16:16:18.638 DMR Slot 2, received network voice header from 4000 to 2625094
+	// M: 2016-04-03 19:30:03.099 DMR Slot 2, received network voice header from 4020 to 2625094
+	foreach ($logLines as $logLine) {
+		if (substr($logLine, 27, strpos($logLine,",") - 27) == $mode) {
 			$from = substr($logLine, strpos($logLine,"from") + 5, strpos($logLine,"to") - strpos($logLine,"from") - 6);
-			
 			if (strlen($from) == 4 && startsWith($from,"4")) {
 				if ($from == "4000") {
-					return "not linked";
+					return "No Ref";
 				} else {
 					return "Ref ".$from;
-				}
-			} 
-		}
-	}
-	return "not linked";
-}
-
-function getActiveYSFReflectors($logLines) {
-// 00000000001111111111222222222233333333334444444444555555555566666666667777777777888888888899999999990000000000111111111122
-// 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901
-// D: 2016-06-11 19:09:31.371 Have reflector status reply from 89164/FUSIONBE2       /FusionBelgium /002
-	$reflectors = Array();
-	$reflectorlist = Array();
-	foreach ($logLines as $logLine) {
-		if (strpos($logLine, "Have reflector status reply from")) {
-			$timestamp = substr($logLine, 3, 19);
-			$timestamp2 = new DateTime($timestamp);
-			$now =  new DateTime();
-			$timestamp2->add(new DateInterval('PT2H'));
-		
-			if ($now->format('U') <= $timestamp2->format('U')) {
-				$str = substr($logLine, 60);
-				$id = strtok($str, "/");
-				$name = strtok("/");
-				$description = strtok("/");
-				$concount = strtok("/");
-				if(!(array_search($name, $reflectors) > -1)) {
-					array_push($reflectors,$name);
-					array_push($reflectorlist, array($name, $description, $id, $concount, $timestamp));
 				}
 			}
 		}
 	}
-	array_multisort($reflectorlist);
-	return $reflectorlist;
+	return "No Ref";
 }
 
+// Not used - to be removed
+//function getActiveYSFReflectors($logLines) {
+// 00000000001111111111222222222233333333334444444444555555555566666666667777777777888888888899999999990000000000111111111122
+// 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901
+// D: 2016-06-11 19:09:31.371 Have reflector status reply from 89164/FUSIONBE2       /FusionBelgium /002
+//	$reflectors = Array();
+//	$reflectorlist = Array();
+//	foreach ($logLines as $logLine) {
+//		if (strpos($logLine, "Have reflector status reply from")) {
+//			$timestamp = substr($logLine, 3, 19);
+//			$timestamp2 = new DateTime($timestamp);
+//			$now =  new DateTime();
+//			$timestamp2->add(new DateInterval('PT2H'));
+//			if ($now->format('U') <= $timestamp2->format('U')) {
+//				$str = substr($logLine, 60);
+//				$id = strtok($str, "/");
+//				$name = strtok("/");
+//				$description = strtok("/");
+//				$concount = strtok("/");
+//				if(!(array_search($name, $reflectors) > -1)) {
+//					array_push($reflectors,$name);
+//					array_push($reflectorlist, array($name, $description, $id, $concount, $timestamp));
+//				}
+//			}
+//		}
+//	}
+//	array_multisort($reflectorlist);
+//	return $reflectorlist;
+//}
 
-
-function getName($callsign) {
-	$callsign = trim($callsign);
-	if (strpos($callsign,"-")) {
-		$callsign = substr($callsign,0,strpos($callsign,"-"));
-	}
-	exec("grep ".$callsign." ".DMRIDDATPATH, $output);
-	$delimiter =" ";
-	if (strpos($output[0],"\t")) {
-	$delimiter = "\t";
-	}
-	$name = substr($output[0], strpos($output[0],$delimiter)+1);
-	$name = substr($name, strpos($name,$delimiter)+1);
-	return $name;
-}
+// Not used - to be removed
+//function getName($callsign) {
+//	$callsign = trim($callsign);
+//	if (strpos($callsign,"-")) {
+//		$callsign = substr($callsign,0,strpos($callsign,"-"));
+//	}
+//	exec("grep ".$callsign." ".DMRIDDATPATH, $output);
+//	$delimiter =" ";
+//	if (strpos($output[0],"\t")) {
+//	$delimiter = "\t";
+//	}
+//	$name = substr($output[0], strpos($output[0],$delimiter)+1);
+//	$name = substr($name, strpos($name,$delimiter)+1);
+//	return $name;
+//}
 
 //Some basic inits
 $mmdvmconfigs = getMMDVMConfig();
-$logLinesMMDVM = getMMDVMLog();
-$reverseLogLinesMMDVM = $logLinesMMDVM;
-array_multisort($reverseLogLinesMMDVM,SORT_DESC);
-$lastHeard = getLastHeard($reverseLogLinesMMDVM);
-$YSFGatewayconfigs = getYSFGatewayConfig();
-$logLinesYSFGateway = getYSFGatewayLog();
-$reverseLogLinesYSFGateway = $logLinesYSFGateway;
-array_multisort($reverseLogLinesYSFGateway,SORT_DESC);
-$P25Gatewayconfigs = getP25GatewayConfig();
-$logLinesP25Gateway = getP25GatewayLog();
-$reverseLogLinesP25Gateway = $logLinesP25Gateway;
-array_multisort($reverseLogLinesP25Gateway,SORT_DESC);
+if (!in_array($_SERVER["PHP_SELF"],array('/mmdvmhost/bm_links.php','/mmdvmhost/bm_manager.php'),true)) {
+	$logLinesMMDVM = getMMDVMLog();
+	$reverseLogLinesMMDVM = $logLinesMMDVM;
+	array_multisort($reverseLogLinesMMDVM,SORT_DESC);
+	$lastHeard = getLastHeard($reverseLogLinesMMDVM);
+
+	// Only need these in repeaterinfo.php
+	if (strpos($_SERVER["PHP_SELF"], 'repeaterinfo.php') !== false || strpos($_SERVER["PHP_SELF"], 'index.php') !== false) {
+		//$YSFGatewayconfigs = getYSFGatewayConfig();
+		$logLinesYSFGateway = getYSFGatewayLog();
+		$reverseLogLinesYSFGateway = $logLinesYSFGateway;
+		array_multisort($reverseLogLinesYSFGateway,SORT_DESC);
+		//$P25Gatewayconfigs = getP25GatewayConfig();
+		$logLinesP25Gateway = getP25GatewayLog();
+		//$reverseLogLinesP25Gateway = array_reverse(getP25GatewayLog());
+		//$NXDNGatewayconfigs = getNXDNGatewayConfig();
+		$logLinesNXDNGateway = getNXDNGatewayLog();
+		//$reverseLogLinesNXDNGateway = array_reverse(getNXDNGatewayLog());
+	}
+}
 ?>

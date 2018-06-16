@@ -28,6 +28,7 @@ if ($configdstarfile = fopen('/etc/dstarrepeater','r')) {
                 	$configdstar[$key1] = $value1;
 		}
         }
+        fclose($configdstarfile);
 }
 
 // Load the ircDDBGateway config file
@@ -41,6 +42,7 @@ if ($configfile = fopen($gatewayConfigPath,'r')) {
                 	$configs[$key] = $value;
 		}
         }
+        fclose($configfile);
 }
 
 // Load the mmdvmhost config file
@@ -57,9 +59,47 @@ if (file_exists('/etc/ysf2dmr')) {
 	if (fopen($ysf2dmrConfigFile,'r')) { $configysf2dmr = parse_ini_file($ysf2dmrConfigFile, true); }
 }
 
+// Load the ysf2nxdn config file
+if (file_exists('/etc/ysf2nxdn')) {
+	$ysf2nxdnConfigFile = '/etc/ysf2nxdn';
+	if (fopen($ysf2nxdnConfigFile,'r')) { $configysf2nxdn = parse_ini_file($ysf2nxdnConfigFile, true); }
+}
+
+// Load the ysf2p25 config file
+if (file_exists('/etc/ysf2p25')) {
+	$ysf2p25ConfigFile = '/etc/ysf2p25';
+	if (fopen($ysf2p25ConfigFile,'r')) { $configysf2p25 = parse_ini_file($ysf2p25ConfigFile, true); }
+}
+
+// Load the dmr2ysf config file
+if (file_exists('/etc/dmr2ysf')) {
+	$dmr2ysfConfigFile = '/etc/dmr2ysf';
+	if (fopen($dmr2ysfConfigFile,'r')) { $configdmr2ysf = parse_ini_file($dmr2ysfConfigFile, true); }
+}
+
+// Load the dmr2nxdn config file
+if (file_exists('/etc/dmr2nxdn')) {
+	$dmr2nxdnConfigFile = '/etc/dmr2nxdn';
+	if (fopen($dmr2nxdnConfigFile,'r')) { $configdmr2nxdn = parse_ini_file($dmr2nxdnConfigFile, true); }
+}
+
 // Load the p25gateway config file
-$p25gatewayConfigFile = '/etc/p25gateway';
-$configp25gateway = parse_ini_file($p25gatewayConfigFile, true);
+if (file_exists('/etc/p25gateway')) {
+	$p25gatewayConfigFile = '/etc/p25gateway';
+	$configp25gateway = parse_ini_file($p25gatewayConfigFile, true);
+}
+
+// Load the nxdngateway config file
+if (file_exists('/etc/nxdngateway')) {
+	$nxdngatewayConfigFile = '/etc/nxdngateway';
+	$confignxdngateway = parse_ini_file($nxdngatewayConfigFile, true);
+}
+
+// Load the nxdn2dmr config file
+if (file_exists('/etc/nxdn2dmr')) {
+	$nxdn2dmrConfigFile = '/etc/nxdn2dmr';
+	if (fopen($nxdn2dmrConfigFile,'r')) { $confignxdn2dmr = parse_ini_file($nxdn2dmrConfigFile, true); }
+}
 
 // Load the dmrgateway config file
 $dmrGatewayConfigFile = '/etc/dmrgateway';
@@ -116,27 +156,43 @@ $MYCALL=strtoupper($callsign);
     <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
     <meta http-equiv="Expires" content="0" />
     <title><?php echo "$MYCALL"." - ".$lang['digital_voice']." ".$lang['dashboard']." - ".$lang['configuration'];?></title>
-    <link rel="stylesheet" type="text/css" href="css/ircddb.css?version=1.3" />
+    <link rel="stylesheet" type="text/css" href="css/pistar-css.php" />
     <script type="text/javascript">
-	function submitform()
-	{
-	  document.getElementById("config").submit();
+	function disablesubmitbuttons() {
+		var inputs = document.getElementsByTagName('input');
+		for (var i = 0; i < inputs.length; i++) {
+			if (inputs[i].type === 'button') {
+				inputs[i].disabled = true;
+			}
+		}
 	}
-	function submitPassform()
-	{
-	  document.getElementById("adminPassForm").submit();
+	function submitform() {
+		disablesubmitbuttons();
+		document.getElementById("config").submit();
 	}
-	function factoryReset()
-	{
-	  if (confirm('WARNING: This will set all your settings back to factory defaults. WiFi setup will be retained to maintain network access to this Pi.\n\nAre you SURE you want to do this?\n\nPress OK to restore the factory configuration\nPress Cancel to go back.')) {
-	    document.getElementById("factoryReset").submit();
-	    } else {
-	    return false;
-	    }
+	function submitPassform() {
+		disablesubmitbuttons();
+		document.getElementById("adminPassForm").submit();
+	}
+	function factoryReset() {
+		if (confirm('WARNING: This will set all your settings back to factory defaults. WiFi setup will be retained to maintain network access to this Pi.\n\nAre you SURE you want to do this?\n\nPress OK to restore the factory configuration\nPress Cancel to go back.')) {
+			document.getElementById("factoryReset").submit();
+		} else {
+			return false;
+		}
 	}
 	function resizeIframe(obj) {
-	  var numpix = parseInt(obj.contentWindow.document.body.scrollHeight, 10);
-	  obj.style.height = numpix + 'px';
+		var numpix = parseInt(obj.contentWindow.document.body.scrollHeight, 10);
+		obj.style.height = numpix + 'px';
+	}
+	function getLocation() {
+		if (navigator.geolocation) {
+			navigator.geolocation.getCurrentPosition(showPosition);
+		}
+	}
+	function showPosition(position) {
+		document.getElementById("confLatitude").value = position.coords.latitude.toFixed(5);
+		document.getElementById("confLongitude").value = position.coords.longitude.toFixed(5);
 	}
     </script>
     <script type="text/javascript" src="/functions.js?version=1.2"></script>
@@ -196,9 +252,16 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	system('sudo systemctl stop pistar-remote.service > /dev/null 2>/dev/null &');		// PiStar-Remote Service
 	system('sudo systemctl stop ysfgateway.service > /dev/null 2>/dev/null &');		// YSFGateway
 	system('sudo systemctl stop ysf2dmr.service > /dev/null 2>/dev/null &');		// YSF2DMR
+	system('sudo systemctl stop ysf2nxdn.service > /dev/null 2>/dev/null &');		// YSF2NXDN
+	system('sudo systemctl stop ysf2p25.service > /dev/null 2>/dev/null &');		// YSF2P25
+	system('sudo systemctl stop nxdn2dmr.service > /dev/null 2>/dev/null &');		// NXDN2DMR
 	system('sudo systemctl stop ysfparrot.service > /dev/null 2>/dev/null &');		// YSFParrot
 	system('sudo systemctl stop p25gateway.service > /dev/null 2>/dev/null &');		// P25Gateway
 	system('sudo systemctl stop p25parrot.service > /dev/null 2>/dev/null &');		// P25Parrot
+	system('sudo systemctl stop nxdngateway.service > /dev/null 2>/dev/null &');		// NXDNGateway
+	system('sudo systemctl stop nxdnparrot.service > /dev/null 2>/dev/null &');		// NXDNParrot
+	system('sudo systemctl stop dmr2ysf.service > /dev/null 2>/dev/null &');		// DMR2YSF
+	system('sudo systemctl stop dmr2nxdn.service > /dev/null 2>/dev/null &');		// DMR2YSF
 	system('sudo systemctl stop dmrgateway.service > /dev/null 2>/dev/null &');		// DMRGateway
 
 	echo "<table>\n";
@@ -222,6 +285,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	  // Over-write the config files with the clean copies
 	  exec('sudo unzip -o /usr/local/bin/config_clean.zip -d /etc/');
 	  exec('sudo rm -rf /etc/dstar-radio.*');
+	  exec('sudo rm -rf /etc/pistar-css.ini');
           echo '<script type="text/javascript">setTimeout(function() { window.location=window.location;},5000);</script>';
 	  // Make the root filesystem read-only
           system('sudo mount -o remount,ro /');
@@ -315,7 +379,10 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	  $configmmdvm['Info']['Latitude'] = $newConfLatitude;
 	  $configysfgateway['Info']['Latitude'] = $newConfLatitude;
 	  $configysf2dmr['Info']['Latitude'] = $newConfLatitude;
+	  $configysf2nxdn['Info']['Latitude'] = $newConfLatitude;
+	  $configysf2p25['Info']['Latitude'] = $newConfLatitude;
 	  $configdmrgateway['Info']['Latitude'] = $newConfLatitude;
+	  $confignxdngateway['Info']['Latitude'] = $newConfLatitude;
 	  system($rollConfLat0);
 	  system($rollConfLat1);
 	  }
@@ -328,7 +395,10 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	  $configmmdvm['Info']['Longitude'] = $newConfLongitude;
 	  $configysfgateway['Info']['Longitude'] = $newConfLongitude;
 	  $configysf2dmr['Info']['Longitude'] = $newConfLongitude;
+	  $configysf2nxdn['Info']['Longitude'] = $newConfLongitude;
+	  $configysf2p25['Info']['Longitude'] = $newConfLongitude;
 	  $configdmrgateway['Info']['Longitude'] = $newConfLongitude;
+	  $confignxdngateway['Info']['Longitude'] = $newConfLongitude;
 	  system($rollConfLon0);
 	  system($rollConfLon1);
 	  }
@@ -342,6 +412,9 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	  $configdmrgateway['Info']['Location'] = '"'.$newConfDesc1.'"';
           $configysfgateway['Info']['Name'] = '"'.$newConfDesc1.'"';
 	  $configysf2dmr['Info']['Location'] = '"'.$newConfDesc1.'"';
+	  $configysf2nxdn['Info']['Location'] = '"'.$newConfDesc1.'"';
+	  $configysf2p25['Info']['Location'] = '"'.$newConfDesc1.'"';
+	  $confignxdngateway['Info']['Name'] = '"'.$newConfDesc1.'"';
 	  system($rollDesc1);
 	  system($rollDesc11);
 	  }
@@ -355,6 +428,9 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	  $configdmrgateway['Info']['Description'] = '"'.$newConfDesc2.'"';
           $configysfgateway['Info']['Description'] = '"'.$newConfDesc2.'"';
 	  $configysf2dmr['Info']['Description'] = '"'.$newConfDesc2.'"';
+	  $configysf2nxdn['Info']['Description'] = '"'.$newConfDesc2.'"';
+	  $configysf2p25['Info']['Description'] = '"'.$newConfDesc2.'"';
+	  $confignxdngateway['Info']['Description'] = '"'.$newConfDesc2.'"';
 	  system($rollDesc2);
 	  system($rollDesc22);
 	  }
@@ -368,6 +444,8 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	  if (escapeshellcmd($_POST['urlAuto']) == 'man') { $rollURL0 = 'sudo sed -i "/url=/c\\url='.$newConfURL.'" /etc/ircddbgateway'; }
           $configmmdvm['Info']['URL'] = $txtURL;
 	  $configysf2dmr['Info']['URL'] = $txtURL;
+	  $configysf2nxdn['Info']['URL'] = $txtURL;
+	  $configysf2p25['Info']['URL'] = $txtURL;
 	  $configdmrgateway['Info']['URL'] = $txtURL;
 	  system($rollURL0);
 	  }
@@ -378,6 +456,8 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	  system($rollAPRSHost);
 	  $configysfgateway['aprs.fi']['Server'] = escapeshellcmd($_POST['selectedAPRSHost']);
 	  $configysf2dmr['aprs.fi']['Server'] = escapeshellcmd($_POST['selectedAPRSHost']);
+	  $configysf2nxdn['aprs.fi']['Server'] = escapeshellcmd($_POST['selectedAPRSHost']);
+	  $configysf2p25['aprs.fi']['Server'] = escapeshellcmd($_POST['selectedAPRSHost']);
 	  }
 
 	// Set ircDDBGateway and TimeServer language
@@ -417,20 +497,34 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	  $rollFREQdvmegaRx = 'sudo sed -i "/dvmegaRXFrequency=/c\\dvmegaRXFrequency='.$newFREQrx.'" /etc/dstarrepeater';
 	  $rollFREQdvmegaTx = 'sudo sed -i "/dvmegaTXFrequency=/c\\dvmegaTXFrequency='.$newFREQtx.'" /etc/dstarrepeater';
 	  $rollModeDuplex = 'sudo sed -i "/mode=/c\\mode=0" /etc/dstarrepeater';
+	  $rollGatewayType = 'sudo sed -i "/gatewayType=/c\\gatewayType=0" /etc/ircddbgateway';
 	  $configmmdvm['Info']['RXFrequency'] = $newFREQrx;
 	  $configmmdvm['Info']['TXFrequency'] = $newFREQtx;
 	  $configdmrgateway['Info']['RXFrequency'] = $newFREQrx;
 	  $configdmrgateway['Info']['TXFrequency'] = $newFREQtx;
 	  $configysfgateway['Info']['RXFrequency'] = $newFREQrx;
 	  $configysfgateway['Info']['TXFrequency'] = $newFREQtx;
+	  $configysfgateway['General']['Suffix'] = "RPT";
 	  $configysf2dmr['Info']['RXFrequency'] = $newFREQrx;
 	  $configysf2dmr['Info']['TXFrequency'] = $newFREQtx;
+	  $configysf2dmr['YSF Network']['Suffix'] = "RPT";
+	  $configysf2nxdn['Info']['RXFrequency'] = $newFREQrx;
+	  $configysf2nxdn['Info']['TXFrequency'] = $newFREQtx;
+	  $configysf2nxdn['YSF Network']['Suffix'] = "RPT";
+	  $configysf2p25['Info']['RXFrequency'] = $newFREQrx;
+	  $configysf2p25['Info']['TXFrequency'] = $newFREQtx;
+	  $configysf2p25['YSF Network']['Suffix'] = "RPT";
+	  $configdmr2ysf['YSF Network']['Suffix'] = "RPT";
+	  $confignxdngateway['Info']['RXFrequency'] = $newFREQrx;
+	  $confignxdngateway['Info']['TXFrequency'] = $newFREQtx;
+	  $confignxdngateway['General']['Suffix'] = "RPT";
 
 	  system($rollFREQirc);
 	  system($rollFREQdvap);
 	  system($rollFREQdvmegaRx);
 	  system($rollFREQdvmegaTx);
 	  system($rollModeDuplex);
+	  system($rollGatewayType);
 
 	// Set RPT1 and RPT2
 	  if (empty($_POST['confDStarModuleSuffix'])) {
@@ -503,20 +597,34 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	  $rollFREQdvmegaRx = 'sudo sed -i "/dvmegaRXFrequency=/c\\dvmegaRXFrequency='.$newFREQ.'" /etc/dstarrepeater';
 	  $rollFREQdvmegaTx = 'sudo sed -i "/dvmegaTXFrequency=/c\\dvmegaTXFrequency='.$newFREQ.'" /etc/dstarrepeater';
 	  $rollModeSimplex = 'sudo sed -i "/mode=/c\\mode=1" /etc/dstarrepeater';
+	  $rollGatewayType = 'sudo sed -i "/gatewayType=/c\\gatewayType=1" /etc/ircddbgateway';
 	  $configmmdvm['Info']['RXFrequency'] = $newFREQ;
 	  $configmmdvm['Info']['TXFrequency'] = $newFREQ;
 	  $configdmrgateway['Info']['RXFrequency'] = $newFREQ;
 	  $configdmrgateway['Info']['TXFrequency'] = $newFREQ;
 	  $configysfgateway['Info']['RXFrequency'] = $newFREQ;
 	  $configysfgateway['Info']['TXFrequency'] = $newFREQ;
+	  $configysfgateway['General']['Suffix'] = "ND";
 	  $configysf2dmr['Info']['RXFrequency'] = $newFREQ;
 	  $configysf2dmr['Info']['TXFrequency'] = $newFREQ;
+	  $configysf2dmr['YSF Network']['Suffix'] = "ND";
+	  $configysf2nxdn['Info']['RXFrequency'] = $newFREQ;
+	  $configysf2nxdn['Info']['TXFrequency'] = $newFREQ;
+	  $configysf2nxdn['YSF Network']['Suffix'] = "ND";
+	  $configysf2p25['Info']['RXFrequency'] = $newFREQ;
+	  $configysf2p25['Info']['TXFrequency'] = $newFREQ;
+	  $configysf2p25['YSF Network']['Suffix'] = "ND";
+	  $configdmr2ysf['YSF Network']['Suffix'] = "ND";
+	  $confignxdngateway['Info']['RXFrequency'] = $newFREQ;
+	  $confignxdngateway['Info']['TXFrequency'] = $newFREQ;
+	  $confignxdngateway['General']['Suffix'] = "ND";
 
 	  system($rollFREQirc);
 	  system($rollFREQdvap);
 	  system($rollFREQdvmegaRx);
 	  system($rollFREQdvmegaTx);
 	  system($rollModeSimplex);
+	  system($rollGatewayType);
 
 	// Set RPT1 and RPT2
 	  if (empty($_POST['confDStarModuleSuffix'])) {
@@ -595,13 +703,25 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 		  system($rollIRCUSER);
 	  }
 
-	  $configmmdvm['General']['Callsign'] = $newCallsignUpper;
+	  //if ( strlen($newCallsignUpper) < 6 ) { $configysfgateway['General']['Callsign'] = $newCallsignUpper."-1"; }
+	  //else { $configysfgateway['General']['Callsign'] = $newCallsignUpper; }
 	  $configysfgateway['General']['Callsign'] = $newCallsignUpper;
+	  $configmmdvm['General']['Callsign'] = $newCallsignUpper;
 	  $configysfgateway['aprs.fi']['Password'] = aprspass($newCallsignUpper);
 	  $configysfgateway['aprs.fi']['Description'] = $newCallsignUpper."_Pi-Star";
 	  $configysf2dmr['aprs.fi']['Password'] = aprspass($newCallsignUpper);
 	  $configysf2dmr['aprs.fi']['Description'] = $newCallsignUpper."_Pi-Star";
 	  $configysf2dmr['YSF Network']['Callsign'] = $newCallsignUpper;
+	  $configysf2nxdn['aprs.fi']['Password'] = aprspass($newCallsignUpper);
+	  $configysf2nxdn['aprs.fi']['Description'] = $newCallsignUpper."_Pi-Star";
+	  $configysf2nxdn['YSF Network']['Callsign'] = $newCallsignUpper;
+	  $configysf2p25['aprs.fi']['Password'] = aprspass($newCallsignUpper);
+	  $configysf2p25['aprs.fi']['Description'] = $newCallsignUpper."_Pi-Star";
+	  $configysf2p25['YSF Network']['Callsign'] = $newCallsignUpper;
+	  $configdmr2ysf['YSF Network']['Callsign'] = $newCallsignUpper;
+	  $confignxdngateway['aprs.fi']['Description'] = $newCallsignUpper."_Pi-Star";
+	  $confignxdngateway['aprs.fi']['Password'] = aprspass($newCallsignUpper);
+	  $confignxdngateway['General']['Callsign'] = $newCallsignUpper;
 
 	  system($rollGATECALL);
 	  system($rollIRCUSER);
@@ -611,18 +731,18 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	  system($rollSTARNETSERVERcall);
 	  system($rollSTARNETSERVERirc);
 	  system($rollP25GATEWAY);
-
 	}
 
 	// Set the P25 Startup Host
 	if (empty($_POST['p25StartupHost']) != TRUE ) {
           $newP25StartupHost = strtoupper(escapeshellcmd($_POST['p25StartupHost']));
-          if ($newP25StartupHost === "NONE") { $rollP25Startup = 'sudo sed -i "/Startup=/c\\#Startup=" /etc/p25gateway'; }
-          else {
-		  if (!isset($configp25gateway['Network']['Startup'])) { $rollP25Startup = 'sudo echo "Startup='.$newP25StartupHost.'" >> /etc/p25gateway'; }
-		  else { $rollP25Startup = 'sudo sed -i "/Startup=/c\\Startup='.$newP25StartupHost.'" /etc/p25gateway'; }
+          if ($newP25StartupHost === "NONE") {
+		  $rollP25Startup = 'sudo sed -i "/Startup=/c\\#Startup=" /etc/p25gateway';
+	  } else {
+		  $rollP25Startup = 'sudo sed -i "/Startup=/c\\Startup='.$newP25StartupHost.'" /etc/p25gateway';
 	  }
 	  system($rollP25Startup);
+	  $configysf2p25['P25 Network']['StartupDstId'] = $newP25StartupHost;
 	}
 
 	// Set P25 NAC
@@ -636,8 +756,17 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	// Set the NXDN Startup Host
 	if (empty($_POST['nxdnStartupHost']) != TRUE ) {
 	  $newNXDNStartupHost = strtoupper(escapeshellcmd($_POST['nxdnStartupHost']));
-	  $configmmdvm['NXDN Network']['GatewayAddress'] = $newNXDNStartupHost;
-	  $configmmdvm['NXDN Network']['GatewayPort'] = "41007";
+	  if (file_exists('/etc/nxdngateway')) {
+		if ($newNXDNStartupHost === "NONE") {
+			unset($confignxdngateway['Network']['Startup']);
+		} else {
+			$confignxdngateway['Network']['Startup'] = $newNXDNStartupHost;
+	  	}
+	  } else {
+		$configmmdvm['NXDN Network']['GatewayAddress'] = $newNXDNStartupHost;
+		$configmmdvm['NXDN Network']['GatewayPort'] = "41007";
+	  }
+	  $configysf2nxdn['NXDN Network']['StartupDstId'] = $newNXDNStartupHost;
 	}
 
 	// Set NXDN RAN
@@ -650,16 +779,24 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 
 	// Set the YSF Startup Host
 	if (empty($_POST['ysfStartupHost']) != TRUE ) {
-	  $newYSFStartupHost = strtoupper(escapeshellcmd($_POST['ysfStartupHost']));
-	  if ($newYSFStartupHost == "NONE") { unset($configysfgateway['Network']['Startup']); }
-	  else { $configysfgateway['Network']['Startup'] = $newYSFStartupHost; }
+	  $newYSFStartupHostArr = explode(',', escapeshellcmd($_POST['ysfStartupHost']));
+	  //$newYSFStartupHost = strtoupper(escapeshellcmd($_POST['ysfStartupHost']));
+	  //if ($newYSFStartupHost == "NONE") { unset($configysfgateway['Network']['Startup']); }
+	  //else { $configysfgateway['Network']['Startup'] = $newYSFStartupHost; }
+	  if (isset($configysfgateway['FCS Network'])) {
+		if ($newYSFStartupHostArr[0] == "none") { unset($configysfgateway['Network']['Startup']); }
+	  	else { $configysfgateway['Network']['Startup'] = $newYSFStartupHostArr[1]; }
+	  } else {
+	  	if ($newYSFStartupHostArr[0] == "none") { unset($configysfgateway['Network']['Startup']); }
+	  	else { $configysfgateway['Network']['Startup'] = $newYSFStartupHostArr[0]; }
+	  }
 	}
 
 	// Set the YSF2DMR Master
 	if (empty($_POST['ysf2dmrMasterHost']) != TRUE ) {
 	  $ysf2dmrMasterHostArr = explode(',', escapeshellcmd($_POST['ysf2dmrMasterHost']));
 	  $configysf2dmr['DMR Network']['Address'] = $ysf2dmrMasterHostArr[0];
-	  $configysf2dmr['DMR Network']['Password'] = $ysf2dmrMasterHostArr[1];
+	  $configysf2dmr['DMR Network']['Password'] = '"'.$ysf2dmrMasterHostArr[1].'"';
 	  $configysf2dmr['DMR Network']['Port'] = $ysf2dmrMasterHostArr[2];
 	}
 
@@ -667,6 +804,28 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	if (empty($_POST['ysf2dmrTg']) != TRUE ) {
 	  $ysf2dmrStartupDstId = preg_replace('/[^0-9]/', '', $_POST['ysf2dmrTg']);
 	  $configysf2dmr['DMR Network']['StartupDstId'] = $ysf2dmrStartupDstId;
+	}
+
+	// Set the YSF2NXDN Master
+	if (empty($_POST['ysf2nxdnStartupDstId']) != TRUE ) {
+	  $configysf2nxdn['NXDN Network']['StartupDstId'] = escapeshellcmd($_POST['ysf2nxdnStartupDstId']);
+	}
+
+	// Set the YSF2NXDN Id
+	if (empty($_POST['ysf2nxdnId']) != TRUE ) {
+	  $configysf2nxdn['NXDN Network']['Id'] = preg_replace('/[^0-9]/', '', $_POST['ysf2nxdnId']);
+	}
+
+	// Set the YSF2P25 Master
+	if (empty($_POST['ysf2p25StartupDstId']) != TRUE ) {	
+	  $newYSF2P25StartupHost = strtoupper(escapeshellcmd($_POST['ysf2p25StartupDstId']));
+	  $configysf2p25['P25 Network']['StartupDstId'] = $newYSF2P25StartupHost;
+	  if ($newYSF2P25StartupHost === "NONE") { unset($configysf2p25['P25 Network']['StartupDstId']); }
+	}
+	
+	// Set the YSF2P25 P25Id
+	if (empty($_POST['ysf2p25Id']) != TRUE ) {
+	  $configysf2p25['P25 Network']['Id'] = preg_replace('/[^0-9]/', '', $_POST['ysf2p25Id']);
 	}
 
 	// Set Duplex
@@ -699,9 +858,12 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 		  if (substr($dmrMasterHostArrTest[3], 0, 4) == 'DMR+') { $newPostDmrId = substr($newPostDmrId, 0, 7); }
 	  }
 	  $configmmdvm['General']['Id'] = $newPostDmrId;
+	  $configysfgateway['General']['Id'] = $newPostDmrId;
 	  $configdmrgateway['XLX Network']['Id'] = substr($newPostDmrId,0,7);
 	  $configdmrgateway['XLX Network 1']['Id'] = substr($newPostDmrId,0,7);
 	  $configdmrgateway['DMR Network 2']['Id'] = substr($newPostDmrId,0,7);
+	  $configdmr2ysf['DMR Network']['Id'] = substr($newPostDmrId,0,7);
+	  $configdmr2nxdn['DMR Network']['Id'] = substr($newPostDmrId,0,7);
 	}
 
 	// Set YSF2DMR ID
@@ -721,7 +883,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	if (empty($_POST['dmrMasterHost']) != TRUE ) {
 	  $dmrMasterHostArr = explode(',', escapeshellcmd($_POST['dmrMasterHost']));
 	  $configmmdvm['DMR Network']['Address'] = $dmrMasterHostArr[0];
-	  $configmmdvm['DMR Network']['Password'] = $dmrMasterHostArr[1];
+	  $configmmdvm['DMR Network']['Password'] = '"'.$dmrMasterHostArr[1].'"';
 	  $configmmdvm['DMR Network']['Port'] = $dmrMasterHostArr[2];
 
 		if (substr($dmrMasterHostArr[3], 0, 2) == "BM") {
@@ -732,12 +894,37 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 			unset ($configysf2dmr['DMR Network']['Local']);
 		}
 
-		if ($dmrMasterHostArr[0] == '127.0.0.1') {
+		// DMR Gateway
+		if ($dmrMasterHostArr[0] == '127.0.0.1' && $dmrMasterHostArr[2] == '62031') {
 			unset ($configmmdvm['DMR Network']['Options']);
 			unset ($configdmrgateway['DMR Network 2']['Options']);
 			$configmmdvm['DMR Network']['Local'] = "62032";
 			unset ($configysf2dmr['DMR Network']['Options']);
 			$configysf2dmr['DMR Network']['Local'] = "62032";
+			if (isset($configdmr2ysf['DMR Network']['LocalAddress'])) {
+				$configdmr2ysf['DMR Network']['LocalAddress'] = "127.0.0.1";
+			}
+			if (isset($configdmr2nxdn['DMR Network']['LocalAddress'])) {
+				$configdmr2nxdn['DMR Network']['LocalAddress'] = "127.0.0.1";
+			}
+		}
+
+		// DMR2YSF
+		if ($dmrMasterHostArr[0] == '127.0.0.2' && $dmrMasterHostArr[2] == '62033') {
+			unset ($configmmdvm['DMR Network']['Options']);
+			$configmmdvm['DMR Network']['Local'] = "62034";
+			if (isset($configdmr2ysf['DMR Network']['LocalAddress'])) {
+				$configdmr2ysf['DMR Network']['LocalAddress'] = "127.0.0.2";
+			}
+		}
+
+		// DMR2NXDN
+		if ($dmrMasterHostArr[0] == '127.0.0.3' && $dmrMasterHostArr[2] == '62035') {
+			unset ($configmmdvm['DMR Network']['Options']);
+			$configmmdvm['DMR Network']['Local'] = "62036";
+			if (isset($configdmr2nxdn['DMR Network']['LocalAddress'])) {
+				$configdmr2nxdn['DMR Network']['LocalAddress'] = "127.0.0.3";
+			}
 		}
 
 		// Set the DMR+ Options= line
@@ -763,14 +950,14 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	if (empty($_POST['dmrMasterHost1']) != TRUE ) {
 	  $dmrMasterHostArr1 = explode(',', escapeshellcmd($_POST['dmrMasterHost1']));
 	  $configdmrgateway['DMR Network 1']['Address'] = $dmrMasterHostArr1[0];
-	  $configdmrgateway['DMR Network 1']['Password'] = $dmrMasterHostArr1[1];
+	  $configdmrgateway['DMR Network 1']['Password'] = '"'.$dmrMasterHostArr1[1].'"';
 	  $configdmrgateway['DMR Network 1']['Port'] = $dmrMasterHostArr1[2];
 	  $configdmrgateway['DMR Network 1']['Name'] = $dmrMasterHostArr1[3];
 	}
 	if (empty($_POST['dmrMasterHost2']) != TRUE ) {
 	  $dmrMasterHostArr2 = explode(',', escapeshellcmd($_POST['dmrMasterHost2']));
 	  $configdmrgateway['DMR Network 2']['Address'] = $dmrMasterHostArr2[0];
-	  $configdmrgateway['DMR Network 2']['Password'] = $dmrMasterHostArr2[1];
+	  $configdmrgateway['DMR Network 2']['Password'] = '"'.$dmrMasterHostArr2[1].'"';
 	  $configdmrgateway['DMR Network 2']['Port'] = $dmrMasterHostArr2[2];
 	  $configdmrgateway['DMR Network 2']['Name'] = $dmrMasterHostArr2[3];
 	  if (empty($_POST['dmrNetworkOptions']) != TRUE ) {
@@ -785,7 +972,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	if (empty($_POST['dmrMasterHost3']) != TRUE ) {
 	  $dmrMasterHostArr3 = explode(',', escapeshellcmd($_POST['dmrMasterHost3']));
 	  $configdmrgateway['XLX Network 1']['Address'] = $dmrMasterHostArr3[0];
-	  $configdmrgateway['XLX Network 1']['Password'] = $dmrMasterHostArr3[1];
+	  $configdmrgateway['XLX Network 1']['Password'] = '"'.$dmrMasterHostArr3[1].'"';
 	  $configdmrgateway['XLX Network 1']['Port'] = $dmrMasterHostArr3[2];
 	  $configdmrgateway['XLX Network 1']['Name'] = $dmrMasterHostArr3[3];
 	  $configdmrgateway['XLX Network']['Startup'] = substr($dmrMasterHostArr3[3], 4);
@@ -883,6 +1070,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollDVMegaPort);
 	    system($rollDVMegaVariant);
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'dvmpid' ) {
@@ -894,6 +1082,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollDVMegaPort);
 	    system($rollDVMegaVariant);
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'dvmuadu' ) {
@@ -905,6 +1094,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollDVMegaPort);
 	    system($rollDVMegaVariant);
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'dvmuada' ) {
@@ -916,6 +1106,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollDVMegaPort);
 	    system($rollDVMegaVariant);
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'dvmbss' ) {
@@ -927,6 +1118,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollDVMegaPort);
 	    system($rollDVMegaVariant);
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'dvmbsd' ) {
@@ -938,6 +1130,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollDVMegaPort);
 	    system($rollDVMegaVariant);
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'dvmuagmsku' ) {
@@ -1000,6 +1193,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollModemType);
 	    $configmmdvm['Modem']['Port'] = "/dev/ttyACM0";
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'zumspotusb' ) {
@@ -1007,6 +1201,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollModemType);
 	    $configmmdvm['Modem']['Port'] = "/dev/ttyACM0";
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'zumspotgpio' ) {
@@ -1014,6 +1209,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollModemType);
 	    $configmmdvm['Modem']['Port'] = "/dev/ttyAMA0";
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'zumradiopigpio' ) {
@@ -1051,6 +1247,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollModemType);
 	    $configmmdvm['Modem']['Port'] = "/dev/ttyAMA0";
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'mmdvmhshatd' ) {
@@ -1065,6 +1262,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollModemType);
 	    $configmmdvm['Modem']['Port'] = "/dev/ttyAMA0";
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'mmdvmvyehat' ) {
@@ -1072,6 +1270,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollModemType);
 	    $configmmdvm['Modem']['Port'] = "/dev/ttyAMA0";
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'mnnano-spot' ) {
@@ -1079,6 +1278,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollModemType);
 	    $configmmdvm['Modem']['Port'] = "/dev/ttyAMA0";
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 
 	  if ( $confHardware == 'mnnano-teensy' ) {
@@ -1086,6 +1286,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	    system($rollModemType);
 	    $configmmdvm['Modem']['Port'] = "/dev/ttyUSB0";
 	    $configmmdvm['General']['Duplex'] = 0;
+	    $configmmdvm['DMR Network']['Slot1'] = 0;
 	  }
 	}
 
@@ -1116,6 +1317,17 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	  if (escapeshellcmd($_POST['sshAccess']) == 'PRV' ) { system($privateSSH); }
 	}
 
+	// Set uPNP On or Off
+	if (empty($_POST['uPNP']) != TRUE ) {
+	  $uPNPon = 'sudo sed -i \'/pistar-upnp.service/c\\*/5 *\t* * *\troot\t/usr/local/sbin/pistar-upnp.service start > /dev/null 2>&1 &\' /etc/crontab';
+	  $uPNPoff = 'sudo sed -i \'/pistar-upnp.service/ s/^#*/#/\' /etc/crontab';
+	  $uPNPsvcOn = 'sudo systemctl enable pistar-upnp.timer';
+	  $uPNPsvcOff = 'sudo systemctl disable pistar-upnp.timer';
+
+	  if (escapeshellcmd($_POST['uPNP']) == 'ON' ) { system($uPNPon); system($uPNPsvcOn); }
+	  if (escapeshellcmd($_POST['uPNP']) == 'OFF' ) { system($uPNPoff); system($uPNPsvcOff); }
+	}
+
 	// D-Star Time Announce
 	if (empty($_POST['confTimeAnnounce']) != TRUE ) {
 	  if (escapeshellcmd($_POST['confTimeAnnounce']) == 'ON' )  { system('sudo rm -rf /etc/timeserver.dissable'); }
@@ -1124,7 +1336,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 
 	// Set MMDVMHost DMR Mode
 	if (empty($_POST['MMDVMModeDMR']) != TRUE ) {
-	  if (escapeshellcmd($_POST['MMDVMModeDMR']) == 'ON' )  { $configmmdvm['DMR']['Enable'] = "1"; $configmmdvm['DMR Network']['Enable'] = "1"; }
+	  if (escapeshellcmd($_POST['MMDVMModeDMR']) == 'ON' )  { $configmmdvm['DMR']['Enable'] = "1"; $configmmdvm['DMR Network']['Enable'] = "1"; $configysf2dmr['Enabled']['Enabled'] = "0";}
 	  if (escapeshellcmd($_POST['MMDVMModeDMR']) == 'OFF' ) { $configmmdvm['DMR']['Enable'] = "0"; $configmmdvm['DMR Network']['Enable'] = "0"; }
 	}
 
@@ -1136,19 +1348,19 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 
 	// Set MMDVMHost Fusion Mode
 	if (empty($_POST['MMDVMModeFUSION']) != TRUE ) {
-          if (escapeshellcmd($_POST['MMDVMModeFUSION']) == 'ON' )  { $configmmdvm['System Fusion']['Enable'] = "1"; $configmmdvm['System Fusion Network']['Enable'] = "1"; }
+          if (escapeshellcmd($_POST['MMDVMModeFUSION']) == 'ON' )  { $configmmdvm['System Fusion']['Enable'] = "1"; $configmmdvm['System Fusion Network']['Enable'] = "1"; $configdmr2ysf['Enabled']['Enabled'] = "0"; }
           if (escapeshellcmd($_POST['MMDVMModeFUSION']) == 'OFF' ) { $configmmdvm['System Fusion']['Enable'] = "0"; $configmmdvm['System Fusion Network']['Enable'] = "0"; }
 	}
 
 	// Set MMDVMHost P25 Mode
 	if (empty($_POST['MMDVMModeP25']) != TRUE ) {
-          if (escapeshellcmd($_POST['MMDVMModeP25']) == 'ON' )  { $configmmdvm['P25']['Enable'] = "1"; $configmmdvm['P25 Network']['Enable'] = "1"; }
+          if (escapeshellcmd($_POST['MMDVMModeP25']) == 'ON' )  { $configmmdvm['P25']['Enable'] = "1"; $configmmdvm['P25 Network']['Enable'] = "1"; $configysf2p25['Enabled']['Enabled'] = "0"; }
           if (escapeshellcmd($_POST['MMDVMModeP25']) == 'OFF' ) { $configmmdvm['P25']['Enable'] = "0"; $configmmdvm['P25 Network']['Enable'] = "0"; }
 	}
 	
 	// Set MMDVMHost NXDN Mode
 	if (empty($_POST['MMDVMModeNXDN']) != TRUE ) {
-          if (escapeshellcmd($_POST['MMDVMModeNXDN']) == 'ON' )  { $configmmdvm['NXDN']['Enable'] = "1"; $configmmdvm['NXDN Network']['Enable'] = "1"; }
+          if (escapeshellcmd($_POST['MMDVMModeNXDN']) == 'ON' )  { $configmmdvm['NXDN']['Enable'] = "1"; $configmmdvm['NXDN Network']['Enable'] = "1"; $configysf2nxdn['Enabled']['Enabled'] = "0"; }
           if (escapeshellcmd($_POST['MMDVMModeNXDN']) == 'OFF' ) { $configmmdvm['NXDN']['Enable'] = "0"; $configmmdvm['NXDN Network']['Enable'] = "0"; }
 	}
 
@@ -1156,6 +1368,90 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	if (empty($_POST['MMDVMModeYSF2DMR']) != TRUE ) {
           if (escapeshellcmd($_POST['MMDVMModeYSF2DMR']) == 'ON' )  { $configysf2dmr['Enabled']['Enabled'] = "1"; }
           if (escapeshellcmd($_POST['MMDVMModeYSF2DMR']) == 'OFF' ) { $configysf2dmr['Enabled']['Enabled'] = "0"; }
+	}
+
+	// Set YSF2NXDN Mode
+	if (empty($_POST['MMDVMModeYSF2NXDN']) != TRUE ) {
+          if (escapeshellcmd($_POST['MMDVMModeYSF2NXDN']) == 'ON' )  { $configysf2nxdn['Enabled']['Enabled'] = "1"; $configmmdvm['NXDN']['Enable'] = "0"; $configmmdvm['NXDN Network']['Enable'] = "0";}
+          if (escapeshellcmd($_POST['MMDVMModeYSF2NXDN']) == 'OFF' ) { $configysf2nxdn['Enabled']['Enabled'] = "0"; }
+	}
+
+	// Set YSF2P25 Mode
+	if (empty($_POST['MMDVMModeYSF2P25']) != TRUE ) {
+          if (escapeshellcmd($_POST['MMDVMModeYSF2P25']) == 'ON' )  { $configysf2p25['Enabled']['Enabled'] = "1"; $configmmdvm['P25']['Enable'] = "0"; $configmmdvm['P25 Network']['Enable'] = "0"; }
+          if (escapeshellcmd($_POST['MMDVMModeYSF2P25']) == 'OFF' ) { $configysf2p25['Enabled']['Enabled'] = "0"; }
+	  if (escapeshellcmd($_POST['MMDVMModeFUSION']) == 'OFF' ) { $configysf2p25['Enabled']['Enabled'] = "0"; }
+	}
+
+	// Set DMR2YSF Mode
+	if (empty($_POST['MMDVMModeDMR2YSF']) != TRUE ) {
+          if (escapeshellcmd($_POST['MMDVMModeDMR2YSF']) == 'ON' )  {
+		  $configdmr2ysf['Enabled']['Enabled'] = "1";
+		  unset($configdmrgateway['DMR Network 3']);
+		  $configdmrgateway['DMR Network 3']['Enabled'] = "0";
+		  $configdmrgateway['DMR Network 3']['Name'] = "DMR2YSF_Cross-over";
+		  $configdmrgateway['DMR Network 3']['Id'] = $configdmrgateway['DMR Network 2']['Id'];
+		  $configdmrgateway['DMR Network 3']['Address'] = "127.0.0.1";
+		  $configdmrgateway['DMR Network 3']['Port'] = "62033";
+		  $configdmrgateway['DMR Network 3']['Local'] = "62034";
+		  $configdmrgateway['DMR Network 3']['TGRewrite0'] = "2,700001,2,1,99999";
+		  $configdmrgateway['DMR Network 3']['SrcRewrite0'] = "2,1,2,700001,99999";
+		  $configdmrgateway['DMR Network 3']['PCRewrite0'] = "2,700001,2,1,99999";
+		  $configdmrgateway['DMR Network 3']['Password'] = '"'."PASSWORD".'"';
+		  $configdmrgateway['DMR Network 3']['Location'] = "0";
+		  $configdmrgateway['DMR Network 3']['Debug'] = "0";
+		  $configmmdvm['System Fusion']['Enable'] = "0";
+		  $configmmdvm['System Fusion Network']['Enable'] = "0";
+	  }
+          if (escapeshellcmd($_POST['MMDVMModeDMR2YSF']) == 'OFF' ) {
+		  $configdmr2ysf['Enabled']['Enabled'] = "0";
+		  $configdmrgateway['DMR Network 3']['Enabled'] = "0";
+	  }
+	}
+
+	// Set DMR2NXDN Mode
+	if (empty($_POST['MMDVMModeDMR2NXDN']) != TRUE ) {
+          if (escapeshellcmd($_POST['MMDVMModeDMR2NXDN']) == 'ON' )  {
+		  if (empty($_POST['MMDVMModeDMR2YSF']) != TRUE ) {
+		  	if (escapeshellcmd($_POST['MMDVMModeDMR2YSF']) == 'ON' )  {
+				$configdmr2ysf['Enabled']['Enabled'] = "0";
+		  	}
+	  	  }
+		  if (empty($_POST['MMDVMModeYSF2NXDN']) != TRUE ) {
+		  	if (escapeshellcmd($_POST['MMDVMModeYSF2NXDN']) == 'ON' )  {
+				$configysf2nxdn['Enabled']['Enabled'] = "0";
+		  	}
+	  	  }
+		  $configdmr2nxdn['Enabled']['Enabled'] = "1";
+		  unset($configdmrgateway['DMR Network 3']);
+		  $configdmrgateway['DMR Network 3']['Enabled'] = "0";
+		  $configdmrgateway['DMR Network 3']['Name'] = "DMR2NXDN_Cross-over";
+		  $configdmrgateway['DMR Network 3']['Id'] = $configdmrgateway['DMR Network 2']['Id'];
+		  $configdmrgateway['DMR Network 3']['Address'] = "127.0.0.1";
+		  $configdmrgateway['DMR Network 3']['Port'] = "62035";
+		  $configdmrgateway['DMR Network 3']['Local'] = "62036";
+		  $configdmrgateway['DMR Network 3']['TGRewrite0'] = "2,700001,2,1,99999";
+		  $configdmrgateway['DMR Network 3']['SrcRewrite0'] = "2,1,2,700001,99999";
+		  $configdmrgateway['DMR Network 3']['PCRewrite0'] = "2,700001,2,1,99999";
+		  $configdmrgateway['DMR Network 3']['Password'] = '"'."PASSWORD".'"';
+		  $configdmrgateway['DMR Network 3']['Location'] = "0";
+		  $configdmrgateway['DMR Network 3']['Debug'] = "0";
+		  $configmmdvm['NXDN']['Enable'] = "0";
+		  $configmmdvm['NXDN Network']['Enable'] = "0";
+	  }
+          if (escapeshellcmd($_POST['MMDVMModeDMR2NXDN']) == 'OFF' ) {
+		  $configdmr2nxdn['Enabled']['Enabled'] = "0";
+		  $configdmrgateway['DMR Network 3']['Enabled'] = "0";
+	  }
+	}
+
+	// Work out if DMR Network 3 should be ON or not
+	if (empty($_POST['MMDVMModeDMR2YSF']) != TRUE || empty($_POST['MMDVMModeDMR2NXDN']) != TRUE) {
+		if (escapeshellcmd($_POST['MMDVMModeDMR2YSF']) == 'ON' || escapeshellcmd($_POST['MMDVMModeDMR2NXDN']) == 'ON') {
+			$configdmrgateway['DMR Network 3']['Enabled'] = "1";
+		} else {
+			$configdmrgateway['DMR Network 3']['Enabled'] = "0";
+		}
 	}
 
 	// Set the MMDVMHost Display Type
@@ -1172,7 +1468,9 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	// Set the Nextion Display Layout
 	if (empty($_POST['mmdvmNextionDisplayType']) != TRUE ) {
 	  if (escapeshellcmd($_POST['mmdvmNextionDisplayType']) == "G4KLX") { $configmmdvm['Nextion']['ScreenLayout'] = "0"; }
-	  if (escapeshellcmd($_POST['mmdvmNextionDisplayType']) == "ON7LDS") { $configmmdvm['Nextion']['ScreenLayout'] = "2"; }
+	  if (escapeshellcmd($_POST['mmdvmNextionDisplayType']) == "ON7LDSL2") { $configmmdvm['Nextion']['ScreenLayout'] = "2"; }
+	  if (escapeshellcmd($_POST['mmdvmNextionDisplayType']) == "ON7LDSL3") { $configmmdvm['Nextion']['ScreenLayout'] = "3"; }
+	  if (escapeshellcmd($_POST['mmdvmNextionDisplayType']) == "ON7LDSL3HS") { $configmmdvm['Nextion']['ScreenLayout'] = "4"; }
 	}
 
 	// Set MMDVMHost DMR Colour Code
@@ -1236,7 +1534,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	if (!isset($configdmrgateway['DMR Network 3']['Name'])) { $configdmrgateway['DMR Network 3']['Name'] = "HBLink"; }
 	if (!isset($configdmrgateway['DMR Network 3']['Address'])) { $configdmrgateway['DMR Network 3']['Address'] = "1.2.3.4"; }
 	if (!isset($configdmrgateway['DMR Network 3']['Port'])) { $configdmrgateway['DMR Network 3']['Port'] = "5555"; }
-	if (!isset($configdmrgateway['DMR Network 3']['TGRewrite'])) { $configdmrgateway['DMR Network 3']['TGRewrite'] = "2,11,2,11,1"; }
+	if (!isset($configdmrgateway['DMR Network 3']['TGRewrite0'])) { $configdmrgateway['DMR Network 3']['TGRewrite0'] = "2,11,2,11,1"; }
 	if (!isset($configdmrgateway['DMR Network 3']['Password'])) { $configdmrgateway['DMR Network 3']['Password'] = "PASSWORD"; }
 	if (!isset($configdmrgateway['DMR Network 3']['Location'])) { $configdmrgateway['DMR Network 3']['Location'] = "0"; }
 	if (!isset($configdmrgateway['DMR Network 3']['Debug'])) { $configdmrgateway['DMR Network 3']['Debug'] = "0"; }
@@ -1265,6 +1563,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	if (!isset($configmmdvm['NXDN Network']['Debug'])) { $configmmdvm['NXDN Network']['Debug'] = "0"; }
 	if (!isset($configmmdvm['NXDN Id Lookup']['File'])) { $configmmdvm['NXDN Id Lookup']['File'] = "/usr/local/etc/NXDN.csv"; }
 	if (!isset($configmmdvm['NXDN Id Lookup']['Time'])) { $configmmdvm['NXDN Id Lookup']['Time'] = "24"; }
+	if (!isset($configmmdvm['System Fusion']['TXHang'])) { $configmmdvm['System Fusion']['TXHang'] = "3"; }
 
 	// Add missing options to YSFGateway
 	if (!isset($configysfgateway['Network']['Revert'])) { $configysfgateway['Network']['Revert'] = "0"; }
@@ -1290,6 +1589,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	if (!isset($configysf2dmr['DMR Network']['TGUnlink'])) { $configysf2dmr['DMR Network']['TGUnlink'] = "4000"; }
 	if (!isset($configysf2dmr['DMR Network']['PCUnlink'])) { $configysf2dmr['DMR Network']['PCUnlink'] = "0"; }	
 	if (!isset($configysf2dmr['DMR Network']['Debug'])) { $configysf2dmr['DMR Network']['Debug'] = "0"; }
+	if ( (!isset($configysf2dmr['DMR Network']['TGListFile'])) && (file_exists('/usr/local/etc/TGList_BM.txt')) ) { $configysf2dmr['DMR Network']['TGListFile'] = "/usr/local/etc/TGList_BM.txt"; }
 	if (!isset($configysf2dmr['DMR Id Lookup']['File'])) { $configysf2dmr['DMR Id Lookup']['File'] = "/usr/local/etc/DMRIds.dat"; }
 	if (!isset($configysf2dmr['DMR Id Lookup']['Time'])) { $configysf2dmr['DMR Id Lookup']['Time'] = "24"; }
 	if (!isset($configysf2dmr['Log']['DisplayLevel'])) { $configysf2dmr['Log']['DisplayLevel'] = "1"; }
@@ -1303,36 +1603,99 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	unset($configysf2dmr['Info']['Enabled']);
 	unset($configysf2dmr['DMR Network']['JitterEnabled']);
 
+	// Add missing options to YSF2NXDN
+	$configysf2nxdn['YSF Network']['LocalPort'] = $configysfgateway['YSF Network']['YSF2NXDNPort'];
+	$configysf2nxdn['YSF Network']['DstPort'] = $configysfgateway['YSF Network']['Port'];
+	$configysf2nxdn['YSF Network']['Daemon'] = "1";
+	$configysf2nxdn['YSF Network']['EnableWiresX'] = "1";
+	if (!isset($configysf2nxdn['Enabled']['Enabled'])) { $configysf2nxdn['Enabled']['Enabled'] = "0"; }
+	$configysf2nxdn['NXDN Id Lookup']['File'] = "/usr/local/etc/NXDN.csv";
+	$configysf2nxdn['NXDN Network']['TGListFile'] = "/usr/local/etc/TGList_NXDN.txt";
+	$configysf2nxdn['Log']['DisplayLevel'] = "1";
+	$configysf2nxdn['Log']['FileLevel'] = "1";
+	$configysf2nxdn['Log']['FilePath'] = "/var/log/pi-star";
+	$configysf2nxdn['Log']['FileRoot'] = "YSF2NXDN";
+
+	// Add missing options to YSF2P25
+	$configysf2p25['YSF Network']['LocalPort'] = $configysfgateway['YSF Network']['YSF2P25Port'];
+	$configysf2p25['YSF Network']['DstPort'] = $configysfgateway['YSF Network']['Port'];
+	$configysf2p25['YSF Network']['Daemon'] = "1";
+	$configysf2p25['YSF Network']['EnableWiresX'] = "1";
+	if (!isset($configysf2p25['Enabled']['Enabled'])) { $configysf2p25['Enabled']['Enabled'] = "0"; }
+	$configysf2p25['DMR Id Lookup']['File'] = "/usr/local/etc/DMRIds.dat";
+	$configysf2p25['P25 Network']['TGListFile'] = "/usr/local/etc/TGList_P25.txt";
+	$configysf2p25['Log']['DisplayLevel'] = "1";
+	$configysf2p25['Log']['FileLevel'] = "1";
+	$configysf2p25['Log']['FilePath'] = "/var/log/pi-star";
+	$configysf2p25['Log']['FileRoot'] = "YSF2P25";	
+	if (isset($configysf2p25['aprs.fi'])) { unset($configysf2p25['aprs.fi']); }
+	
+	// Clean up for NXDN Gateway
+	if (file_exists('/etc/nxdngateway')) {
+		$configmmdvm['NXDN Network']['LocalAddress'] = "127.0.0.1";
+		$configmmdvm['NXDN Network']['LocalPort'] = "14021";
+		$configmmdvm['NXDN Network']['GatewayAddress'] = "127.0.0.1";
+		$configmmdvm['NXDN Network']['GatewayPort'] = "14020";
+		if(isset($configmmdvm['NXDN']['SelfOnly'])) {
+			$nxdnSelfOnlyTmp = $configmmdvm['NXDN']['SelfOnly'];
+			unset($configmmdvm['NXDN']['SelfOnly']);
+			$configmmdvm['NXDN']['SelfOnly'] = $nxdnSelfOnlyTmp;
+		}
+		if(isset($configmmdvm['NXDN']['ModeHang'])) {
+			$nxdnRfModeHangTmp = $configmmdvm['NXDN']['ModeHang'];
+			unset($configmmdvm['NXDN']['ModeHang']);
+			$configmmdvm['NXDN']['ModeHang'] = $nxdnRfModeHangTmp;
+		}
+		if(isset($configmmdvm['NXDN Network']['ModeHang'])) {
+			$nxdnNetModeHangTmp = $configmmdvm['NXDN Network']['ModeHang'];
+			unset($configmmdvm['NXDN Network']['ModeHang']);
+			$configmmdvm['NXDN Network']['ModeHang'] = $nxdnNetModeHangTmp;
+		}
+		// Add in all the APRS stuff
+		if(!isset($confignxdngateway['Info']['Power'])) { $confignxdngateway['Info']['Power'] = "1"; }
+		if(!isset($confignxdngateway['Info']['Height'])) { $confignxdngateway['Info']['Height'] = "0"; }
+		if(!isset($confignxdngateway['aprs.fi']['Enable'])) { $confignxdngateway['aprs.fi']['Enable'] = "0"; }
+		if(!isset($confignxdngateway['aprs.fi']['Server'])) { $confignxdngateway['aprs.fi']['Server'] = "euro.aprs2.net"; }
+		if(!isset($confignxdngateway['aprs.fi']['Port'])) { $confignxdngateway['aprs.fi']['Port'] = "14580"; }
+		if(!isset($confignxdngateway['aprs.fi']['Password'])) { $confignxdngateway['aprs.fi']['Password'] = "9999"; }
+		if(!isset($confignxdngateway['aprs.fi']['Description'])) { $confignxdngateway['aprs.fi']['Description'] = "APRS for NXDN Gateway"; }
+		if(!isset($confignxdngateway['aprs.fi']['Suffix'])) { $confignxdngateway['aprs.fi']['Suffix'] = "N"; }
+	}
+	
 
 	// Clean up legacy options
 	$dmrGatewayVer = exec("DMRGateway -v | awk {'print $3'} | cut -c 1-8");
 	if ($dmrGatewayVer > 20170924) {
 		unset($configdmrgateway['XLX Network 1']);
 		unset($configdmrgateway['XLX Network 2']);
-		unset($configmmdvm['NXDN Network']['LocalAddress']);
 	}
 	
 	// Migrate YSFGateway Config
-	//$ysfGatewayVer = exec("YSFGateway -v | awk {'print $3'} | cut -c 1-8");
-	//if ($ysfGatewayVer > 20180303) {
-	//	if (isset($configysfgateway['Network']['Startup'])) { $ysfTmpStartup = $configysfgateway['Network']['Startup']; }
-	//	$configysfgateway['aprs.fi']['Enable'] = "0";
-	//	unset($configysfgateway['Network']);
-	//	if (isset($ysfTmpStartup)) { $configysfgateway['Network']['Startup'] = $ysfTmpStartup; }
-	//	$configysfgateway['Network']['InactivityTimeout'] = "0";
-	//	$configysfgateway['Network']['Revert'] = "0";
-	//	$configysfgateway['Network']['Debug'] = "0";
-	//	$configysfgateway['YSF Network']['Enable'] = "1";
-	//	$configysfgateway['YSF Network']['Port'] = "42000";
-	//	$configysfgateway['YSF Network']['Hosts'] = "/usr/local/etc/YSFHosts.txt";
-	//	$configysfgateway['YSF Network']['ReloadTime'] = "60";
-	//	$configysfgateway['YSF Network']['ParrotAddress'] = "127.0.0.1";
-	//	$configysfgateway['YSF Network']['ParrotPort'] = "42012";
-	//	$configysfgateway['YSF Network']['YSF2DMRAddress'] = "127.0.0.1";
-	//	$configysfgateway['YSF Network']['YSF2DMRPort'] = "42013";
-	//	$configysfgateway['FCS Network']['Enable'] = "1";
-	//	$configysfgateway['FCS Network']['Port'] = "42001";
-	//}
+	$ysfGatewayVer = exec("YSFGateway -v | awk {'print $3'} | cut -c 1-8");
+	if ($ysfGatewayVer > 20180303) {
+		if (isset($configysfgateway['Network']['Startup'])) { $ysfTmpStartup = $configysfgateway['Network']['Startup']; }
+		$configysfgateway['aprs.fi']['Enable'] = "1";
+		unset($configysfgateway['Network']);
+		if (isset($ysfTmpStartup)) { $configysfgateway['Network']['Startup'] = $ysfTmpStartup; }
+		$configysfgateway['Network']['InactivityTimeout'] = "0";
+		$configysfgateway['Network']['Revert'] = "0";
+		$configysfgateway['Network']['Debug'] = "0";
+		$configysfgateway['YSF Network']['Enable'] = "1";
+		$configysfgateway['YSF Network']['Port'] = "42000";
+		$configysfgateway['YSF Network']['Hosts'] = "/usr/local/etc/YSFHosts.txt";
+		$configysfgateway['YSF Network']['ReloadTime'] = "60";
+		$configysfgateway['YSF Network']['ParrotAddress'] = "127.0.0.1";
+		$configysfgateway['YSF Network']['ParrotPort'] = "42012";
+		$configysfgateway['YSF Network']['YSF2DMRAddress'] = "127.0.0.1";
+		$configysfgateway['YSF Network']['YSF2DMRPort'] = "42013";
+		$configysfgateway['YSF Network']['YSF2NXDNAddress'] = "127.0.0.1";
+		$configysfgateway['YSF Network']['YSF2NXDNPort'] = "42014";
+		$configysfgateway['YSF Network']['YSF2P25Address'] = "127.0.0.1";
+		$configysfgateway['YSF Network']['YSF2P25Port'] = "42015";
+		$configysfgateway['FCS Network']['Enable'] = "1";
+		$configysfgateway['FCS Network']['Port'] = "42001";
+		$configysfgateway['FCS Network']['Rooms'] = "/usr/local/etc/FCSHosts.txt";
+	}
 
 	// Create the hostfiles.nodextra file if required
 	if (empty($_POST['confHostFilesNoDExtra']) != TRUE ) {
@@ -1425,6 +1788,44 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 			exec('sudo chown root:root /etc/ysfgateway');				// Set the owner
 		}
 	}
+	
+	// NXDNGateway config file wrangling
+	$nxdngwContent = "";
+        foreach($confignxdngateway as $nxdngwSection=>$nxdngwValues) {
+                // UnBreak special cases
+                $nxdngwSection = str_replace("_", " ", $nxdngwSection);
+                $nxdngwContent .= "[".$nxdngwSection."]\n";
+                // append the values
+                foreach($nxdngwValues as $nxdngwKey=>$nxdngwValue) {
+                        $nxdngwContent .= $nxdngwKey."=".$nxdngwValue."\n";
+                        }
+                        $nxdngwContent .= "\n";
+                }
+
+        if (!$handleNXDNGWconfig = fopen('/tmp/kXKwkDKy793HF5.tmp', 'w')) {
+                return false;
+        }
+
+	if (!is_writable('/tmp/kXKwkDKy793HF5.tmp')) {
+          echo "<br />\n";
+          echo "<table>\n";
+          echo "<tr><th>ERROR</th></tr>\n";
+          echo "<tr><td>Unable to write configuration file(s)...</td><tr>\n";
+          echo "<tr><td>Please wait a few seconds and retry...</td></tr>\n";
+          echo "</table>\n";
+          unset($_POST);
+          echo '<script type="text/javascript">setTimeout(function() { window.location=window.location;},5000);</script>';
+          die();
+	}
+	else {
+	        $success = fwrite($handleNXDNGWconfig, $nxdngwContent);
+	        fclose($handleNXDNGWconfig);
+		if ( (intval(exec('cat /tmp/kXKwkDKy793HF5.tmp | wc -l')) > 30 ) && (file_exists('/etc/nxdngateway')) ) {
+			exec('sudo mv /tmp/kXKwkDKy793HF5.tmp /etc/nxdngateway');		// Move the file back
+			exec('sudo chmod 644 /etc/nxdngateway');				// Set the correct runtime permissions
+			exec('sudo chown root:root /etc/nxdngateway');				// Set the owner
+		}
+	}
 
         // ysf2dmr config file wrangling
         $ysf2dmrContent = "";
@@ -1461,6 +1862,150 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
                         exec('sudo mv /tmp/dsWGR34tHRrSFFGA.tmp /etc/ysf2dmr');                 // Move the file back
                         exec('sudo chmod 644 /etc/ysf2dmr');                                    // Set the correct runtime permissions
                         exec('sudo chown root:root /etc/ysf2dmr');                              // Set the owner
+                }
+        }
+
+	// ysf2nxdn config file wrangling
+        $ysf2nxdnContent = "";
+        foreach($configysf2nxdn as $ysf2nxdnSection=>$ysf2nxdnValues) {
+                // UnBreak special cases
+                $ysf2nxdnSection = str_replace("_", " ", $ysf2nxdnSection);
+                $ysf2nxdnContent .= "[".$ysf2nxdnSection."]\n";
+                // append the values
+                foreach($ysf2nxdnValues as $ysf2nxdnKey=>$ysf2nxdnValue) {
+                        $ysf2nxdnContent .= $ysf2nxdnKey."=".$ysf2nxdnValue."\n";
+                        }
+                        $ysf2nxdnContent .= "\n";
+                }
+        if (!$handleYSF2NXDNconfig = fopen('/tmp/dsWGR34tHRrSFFGb.tmp', 'w')) {
+                return false;
+        }
+        if (!is_writable('/tmp/dsWGR34tHRrSFFGb.tmp')) {
+          echo "<br />\n";
+          echo "<table>\n";
+          echo "<tr><th>ERROR</th></tr>\n";
+          echo "<tr><td>Unable to write configuration file(s)...</td><tr>\n";
+          echo "<tr><td>Please wait a few seconds and retry...</td></tr>\n";
+          echo "</table>\n";
+          unset($_POST);
+          echo '<script type="text/javascript">setTimeout(function() { window.location=window.location;},5000);</script>';
+          die();
+        }
+        else {
+                $success = fwrite($handleYSF2NXDNconfig, $ysf2nxdnContent);
+                fclose($handleYSF2NXDNconfig);
+                if (intval(exec('cat /tmp/dsWGR34tHRrSFFGb.tmp | wc -l')) > 35 ) {
+                        exec('sudo mv /tmp/dsWGR34tHRrSFFGb.tmp /etc/ysf2nxdn');                 // Move the file back
+                        exec('sudo chmod 644 /etc/ysf2nxdn');                                    // Set the correct runtime permissions
+                        exec('sudo chown root:root /etc/ysf2nxdn');                              // Set the owner
+                }
+        }
+
+	// ysf2p25 config file wrangling
+        $ysf2p25Content = "";
+        foreach($configysf2p25 as $ysf2p25Section=>$ysf2p25Values) {
+                // UnBreak special cases
+                $ysf2p25Section = str_replace("_", " ", $ysf2p25Section);
+                $ysf2p25Content .= "[".$ysf2p25Section."]\n";
+                // append the values
+                foreach($ysf2p25Values as $ysf2p25Key=>$ysf2p25Value) {
+                        $ysf2p25Content .= $ysf2p25Key."=".$ysf2p25Value."\n";
+                        }
+                        $ysf2p25Content .= "\n";
+                }
+        if (!$handleYSF2P25config = fopen('/tmp/dsWGR34tHRrSFFGc.tmp', 'w')) {
+                return false;
+        }
+        if (!is_writable('/tmp/dsWGR34tHRrSFFGc.tmp')) {
+          echo "<br />\n";
+          echo "<table>\n";
+          echo "<tr><th>ERROR</th></tr>\n";
+          echo "<tr><td>Unable to write configuration file(s)...</td><tr>\n";
+          echo "<tr><td>Please wait a few seconds and retry...</td></tr>\n";
+          echo "</table>\n";
+          unset($_POST);
+          echo '<script type="text/javascript">setTimeout(function() { window.location=window.location;},5000);</script>';
+          die();
+        }
+        else {
+                $success = fwrite($handleYSF2P25config, $ysf2p25Content);
+                fclose($handleYSF2P25config);
+                if (intval(exec('cat /tmp/dsWGR34tHRrSFFGc.tmp | wc -l')) > 25 ) {
+                        exec('sudo mv /tmp/dsWGR34tHRrSFFGc.tmp /etc/ysf2p25');                 // Move the file back
+                        exec('sudo chmod 644 /etc/ysf2p25');                                    // Set the correct runtime permissions
+                        exec('sudo chown root:root /etc/ysf2p25');                              // Set the owner
+                }
+        }
+	
+	// dmr2ysf config file wrangling
+        $dmr2ysfContent = "";
+        foreach($configdmr2ysf as $dmr2ysfSection=>$dmr2ysfValues) {
+                // UnBreak special cases
+                $dmr2ysfSection = str_replace("_", " ", $dmr2ysfSection);
+                $dmr2ysfContent .= "[".$dmr2ysfSection."]\n";
+                // append the values
+                foreach($dmr2ysfValues as $dmr2ysfKey=>$dmr2ysfValue) {
+                        $dmr2ysfContent .= $dmr2ysfKey."=".$dmr2ysfValue."\n";
+                        }
+                        $dmr2ysfContent .= "\n";
+                }
+        if (!$handleDMR2YSFconfig = fopen('/tmp/dhJSgdy7755HGc.tmp', 'w')) {
+                return false;
+        }
+        if (!is_writable('/tmp/dhJSgdy7755HGc.tmp')) {
+          echo "<br />\n";
+          echo "<table>\n";
+          echo "<tr><th>ERROR</th></tr>\n";
+          echo "<tr><td>Unable to write configuration file(s)...</td><tr>\n";
+          echo "<tr><td>Please wait a few seconds and retry...</td></tr>\n";
+          echo "</table>\n";
+          unset($_POST);
+          echo '<script type="text/javascript">setTimeout(function() { window.location=window.location;},5000);</script>';
+          die();
+        }
+        else {
+                $success = fwrite($handleDMR2YSFconfig, $dmr2ysfContent);
+                fclose($handleDMR2YSFconfig);
+                if (intval(exec('cat /tmp/dhJSgdy7755HGc.tmp | wc -l')) > 25 ) {
+                        exec('sudo mv /tmp/dhJSgdy7755HGc.tmp /etc/dmr2ysf');		// Move the file back
+                        exec('sudo chmod 644 /etc/dmr2ysf');				// Set the correct runtime permissions
+                        exec('sudo chown root:root /etc/dmr2ysf');			// Set the owner
+                }
+        }
+
+	// dmr2nxdn config file wrangling
+        $dmr2nxdnContent = "";
+        foreach($configdmr2nxdn as $dmr2nxdnSection=>$dmr2nxdnValues) {
+                // UnBreak special cases
+                $dmr2nxdnSection = str_replace("_", " ", $dmr2nxdnSection);
+                $dmr2nxdnContent .= "[".$dmr2nxdnSection."]\n";
+                // append the values
+                foreach($dmr2nxdnValues as $dmr2nxdnKey=>$dmr2nxdnValue) {
+                        $dmr2nxdnContent .= $dmr2nxdnKey."=".$dmr2nxdnValue."\n";
+                        }
+                        $dmr2nxdnContent .= "\n";
+                }
+        if (!$handleDMR2NXDNconfig = fopen('/tmp/nthfheS55HGc.tmp', 'w')) {
+                return false;
+        }
+        if (!is_writable('/tmp/nthfheS55HGc.tmp')) {
+          echo "<br />\n";
+          echo "<table>\n";
+          echo "<tr><th>ERROR</th></tr>\n";
+          echo "<tr><td>Unable to write configuration file(s)...</td><tr>\n";
+          echo "<tr><td>Please wait a few seconds and retry...</td></tr>\n";
+          echo "</table>\n";
+          unset($_POST);
+          echo '<script type="text/javascript">setTimeout(function() { window.location=window.location;},5000);</script>';
+          die();
+        }
+        else {
+                $success = fwrite($handleDMR2NXDNconfig, $dmr2nxdnContent);
+                fclose($handleDMR2NXDNconfig);
+                if (intval(exec('cat /tmp/nthfheS55HGc.tmp | wc -l')) > 25 ) {
+                        exec('sudo mv /tmp/nthfheS55HGc.tmp /etc/dmr2nxdn');		// Move the file back
+                        exec('sudo chmod 644 /etc/dmr2nxdn');				// Set the correct runtime permissions
+                        exec('sudo chown root:root /etc/dmr2nxdn');			// Set the owner
                 }
         }
 
@@ -1557,12 +2102,21 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	system('sudo systemctl start timeserver.service > /dev/null 2>/dev/null &');		// Time Server Service
 	system('sudo systemctl start pistar-watchdog.service > /dev/null 2>/dev/null &');	// PiStar-Watchdog Service
 	system('sudo systemctl start pistar-remote.service > /dev/null 2>/dev/null &');		// PiStar-Remote Service
-	system('sudo systemctl start pistar-upnp.service > /dev/null 2>/dev/null &');		// PiStar-UPnP Service
+	if (empty($_POST['uPNP']) != TRUE ) {
+		if (escapeshellcmd($_POST['uPNP']) == 'ON' ) { system('sudo systemctl start pistar-upnp.service > /dev/null 2>/dev/null &'); }
+	}
 	system('sudo systemctl start ysf2dmr.service > /dev/null 2>/dev/null &');		// YSF2DMR
+	system('sudo systemctl start ysf2nxdn.service > /dev/null 2>/dev/null &');		// YSF2NXDN
+	system('sudo systemctl start ysf2p25.service > /dev/null 2>/dev/null &');		// YSF2P25
+	system('sudo systemctl start nxdn2dmr.service > /dev/null 2>/dev/null &');		// NXDN2DMR
 	system('sudo systemctl start ysfgateway.service > /dev/null 2>/dev/null &');		// YSFGateway
 	system('sudo systemctl start ysfparrot.service > /dev/null 2>/dev/null &');		// YSFParrot
 	system('sudo systemctl start p25gateway.service > /dev/null 2>/dev/null &');		// P25Gateway
 	system('sudo systemctl start p25parrot.service > /dev/null 2>/dev/null &');		// P25Parrot
+	system('sudo systemctl start nxdngateway.service > /dev/null 2>/dev/null &');		// NXDNGateway
+	system('sudo systemctl start nxdnparrot.service > /dev/null 2>/dev/null &');		// NXDNParrot
+	system('sudo systemctl start dmr2ysf.service > /dev/null 2>/dev/null &');		// DMR2YSF
+	system('sudo systemctl start dmr2nxdn.service > /dev/null 2>/dev/null &');		// DMR2NXDN
 	system('sudo systemctl start dmrgateway.service > /dev/null 2>/dev/null &');		// DMRGateway
 
 	// Set the system timezone
@@ -1629,6 +2183,10 @@ else:
     <input type="hidden" name="MMDVMModeP25" value="OFF" />
     <input type="hidden" name="MMDVMModeNXDN" value="OFF" />
     <input type="hidden" name="MMDVMModeYSF2DMR" value="OFF" />
+    <input type="hidden" name="MMDVMModeYSF2NXDN" value="OFF" />
+    <input type="hidden" name="MMDVMModeYSF2P25" value="OFF" />
+    <input type="hidden" name="MMDVMModeDMR2YSF" value="OFF" />
+    <input type="hidden" name="MMDVMModeDMR2NXDN" value="OFF" />
 	<div><b><?php echo $lang['mmdvmhost_config'];?></b></div>
     <table>
     <tr>
@@ -1639,10 +2197,10 @@ else:
     <td align="left"><a class="tooltip2" href="#"><?php echo $lang['dmr_mode'];?>:<span><b>DMR Mode</b>Turn on DMR Features</span></a></td>
     <?php
 	if ( $configmmdvm['DMR']['Enable'] == 1 ) {
-		echo "<td align=\"left\"><div class=\"switch\"><input id=\"toggle-dmr\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeDMR\" value=\"ON\" checked=\"checked\" /><label for=\"toggle-dmr\"></label></div></td>\n";
+		echo "<td align=\"left\"><div class=\"switch\"><input id=\"toggle-dmr\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeDMR\" value=\"ON\" checked=\"checked\" aria-checked=\"true\" aria-label=\"Turn DMR Mode Off\" /><label for=\"toggle-dmr\"></label></div></td>\n";
 		}
 	else {
-		echo "<td align=\"left\"><div class=\"switch\"><input id=\"toggle-dmr\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeDMR\" value=\"ON\" /><label for=\"toggle-dmr\"></label></div></td>\n";
+		echo "<td align=\"left\"><div class=\"switch\"><input id=\"toggle-dmr\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeDMR\" value=\"ON\" aria-checked=\"false\" aria-label=\"Turn DMR Mode On\" /><label for=\"toggle-dmr\"></label></div></td>\n";
 	}
     ?>
     <td>RF Hangtime: <input type="text" name="dmrRfHangTime" size="7" maxlength="3" value="<?php if (isset($configmmdvm['DMR']['ModeHang'])) { echo $configmmdvm['DMR']['ModeHang']; } else { echo "20"; } ?>" />
@@ -1716,6 +2274,60 @@ else:
 	}
     ?>
     </tr>
+    <?php if (file_exists('/etc/ysf2nxdn')) { ?>
+    <tr>
+    <td align="left"><a class="tooltip2" href="#">YSF2NXDN:<span><b>YSF2NXDN Mode</b>Turn on YSF2NXDN Features</span></a></td>
+    <?php
+	if ( $configysf2nxdn['Enabled']['Enabled'] == 1 ) {
+		echo "<td colspan=\"2\" align=\"left\"><div class=\"switch\"><input id=\"toggle-ysf2nxdn\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeYSF2NXDN\" value=\"ON\" checked=\"checked\" /><label for=\"toggle-ysf2nxdn\"></label></div></td>\n";
+		}
+	else {
+		echo "<td colspan=\"2\" align=\"left\"><div class=\"switch\"><input id=\"toggle-ysf2nxdn\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeYSF2NXDN\" value=\"ON\" /><label for=\"toggle-ysf2nxdn\"></label></div></td>\n";
+	}
+    ?>
+    </tr>
+    <?php } ?>
+    <?php if (file_exists('/etc/ysf2p25')) { ?>
+    <tr>
+    <td align="left"><a class="tooltip2" href="#">YSF2P25:<span><b>YSF2P25 Mode</b>Turn on YSF2P25 Features</span></a></td>
+    <?php
+	if ( $configysf2p25['Enabled']['Enabled'] == 1 ) {
+		echo "<td colspan=\"2\" align=\"left\"><div class=\"switch\"><input id=\"toggle-ysf2p25\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeYSF2P25\" value=\"ON\" checked=\"checked\" /><label for=\"toggle-ysf2p25\"></label></div></td>\n";
+		}
+	else {
+		echo "<td colspan=\"2\" align=\"left\"><div class=\"switch\"><input id=\"toggle-ysf2p25\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeYSF2P25\" value=\"ON\" /><label for=\"toggle-ysf2p25\"></label></div></td>\n";
+	}
+    ?>
+    </tr>
+    <?php } ?>
+    <?php if (file_exists('/etc/dmr2ysf')) { ?>
+    <tr>
+    <td align="left"><a class="tooltip2" href="#">DMR2YSF:<span><b>DMR2YSF Mode</b>Turn on DMR2YSF Features</span></a></td>
+    <?php
+	if ( $configdmr2ysf['Enabled']['Enabled'] == 1 ) {
+		echo "<td align=\"left\"><div class=\"switch\"><input id=\"toggle-dmr2ysf\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeDMR2YSF\" value=\"ON\" checked=\"checked\" /><label for=\"toggle-dmr2ysf\"></label></div></td>\n";
+		}
+	else {
+		echo "<td align=\"left\"><div class=\"switch\"><input id=\"toggle-dmr2ysf\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeDMR2YSF\" value=\"ON\" /><label for=\"toggle-dmr2ysf\"></label></div></td>\n";
+	}
+    ?>
+    <td>Uses 7 prefix on DMRGateway</td>
+    </tr>
+    <?php } ?>
+    <?php if (file_exists('/etc/dmr2nxdn')) { ?>
+    <tr>
+    <td align="left"><a class="tooltip2" href="#">DMR2NXDN:<span><b>DMR2NXDN Mode</b>Turn on DMR2NXDN Features</span></a></td>
+    <?php
+	if ( $configdmr2nxdn['Enabled']['Enabled'] == 1 ) {
+		echo "<td align=\"left\"><div class=\"switch\"><input id=\"toggle-dmr2nxdn\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeDMR2NXDN\" value=\"ON\" checked=\"checked\" /><label for=\"toggle-dmr2nxdn\"></label></div></td>\n";
+		}
+	else {
+		echo "<td align=\"left\"><div class=\"switch\"><input id=\"toggle-dmr2nxdn\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModeDMR2NXDN\" value=\"ON\" /><label for=\"toggle-dmr2nxdn\"></label></div></td>\n";
+	}
+    ?>
+    <td>Uses 7 prefix on DMRGateway</td>
+    </tr>
+    <?php } ?>
     <tr>
     <td align="left"><a class="tooltip2" href="#"><?php echo $lang['mmdvm_display'];?>:<span><b>Display Type</b>Choose your display<br />type if you have one.</span></a></td>
     <td align="left" colspan="2"><select name="mmdvmDisplayType">
@@ -1740,8 +2352,12 @@ else:
 	    </select>
 	    Nextion Layout: <select name="mmdvmNextionDisplayType">
 	    <option <?php if ($configmmdvm['Nextion']['ScreenLayout'] == "0") {echo 'selected="selected" ';}; ?>value="G4KLX">G4KLX</option>
-	    <option <?php if ($configmmdvm['Nextion']['ScreenLayout'] == "2") {echo 'selected="selected" ';}; ?>value="ON7LDS">ON7LDS</option>
+	    <option <?php if ($configmmdvm['Nextion']['ScreenLayout'] == "2") {echo 'selected="selected" ';}; ?>value="ON7LDSL2">ON7LDS L2</option>
+	    <option <?php if ($configmmdvm['Nextion']['ScreenLayout'] == "3") {echo 'selected="selected" ';}; ?>value="ON7LDSL3">ON7LDS L3</option>
+	    <option <?php if ($configmmdvm['Nextion']['ScreenLayout'] == "4") {echo 'selected="selected" ';}; ?>value="ON7LDSL3HS">ON7LDS L3 HS</option>
 	    </select>
+	    Brush firmware:
+	    <div><input type="button" value="" /><br /></div>
     </td></tr>
     <!--<tr>
     <td align="left"><a class="tooltip2" href="#"><?php echo $lang['mode_hangtime'];?>:<span><b>Net Hang Time</b>Stay in the last mode for<br />this many seconds</span></a></td>
@@ -1764,8 +2380,7 @@ else:
     <td align="left"><a class="tooltip2" href="#"><?php echo $lang['node_call'];?>:<span><b>Gateway Callsign</b>This is your licenced callsign for use<br />on this gateway, do not append<br />the "G"</span></a></td>
     <td align="left" colspan="2"><input type="text" name="confCallsign" size="13" maxlength="7" value="<?php echo $configs['gatewayCallsign'] ?>" /></td>
     </tr>
-    <?php if (file_exists('/etc/dstar-radio.mmdvmhost') && (($configmmdvm['DMR']['Enable'] == 1) || ($configmmdvm['P25']['Enable'] == 1 ))) {
-    $dmrMasterFile = fopen("/usr/local/etc/DMR_Hosts.txt", "r"); ?>
+    <?php if (file_exists('/etc/dstar-radio.mmdvmhost') && (($configmmdvm['DMR']['Enable'] == 1) || ($configmmdvm['P25']['Enable'] == 1 ) || ($configmmdvm['System Fusion']['Enable'] == 1 ))) { ?>
     <tr>
     <td align="left"><a class="tooltip2" href="#"><?php echo $lang['dmr_id'];?>:<span><b>CCS7/DMR ID</b>Enter your CCS7 / DMR ID here</span></a></td>
     <td align="left" colspan="2"><input type="text" name="dmrId" size="13" maxlength="9" value="<?php if (isset($configmmdvm['General']['Id'])) { echo $configmmdvm['General']['Id']; } else { echo $configmmdvm['DMR']['Id']; } ?>" /></td>
@@ -1793,12 +2408,12 @@ else:
 	}
 ?>
     <tr>
-    <td align="left"><a class="tooltip2" href="#"><?php echo $lang['lattitude'];?>:<span><b>Gateway Latitude</b>This is the latitude where the<br />gateway is located (positive<br />number for North, negative<br />number for South)</span></a></td>
-    <td align="left" colspan="2"><input type="text" name="confLatitude" size="13" maxlength="9" value="<?php echo $configs['latitude'] ?>" />degrees (positive value for North, negative for South)</td>
+    <td align="left"><a class="tooltip2" href="#"><?php echo $lang['lattitude'];  if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') { echo '<button type="button" onclick="getLocation()">Get</button>'; } ?>:<span><b>Gateway Latitude</b>This is the latitude where the<br />gateway is located (positive<br />number for North, negative<br />number for South)</span></a></td>
+    <td align="left" colspan="2"><input type="text" id="confLatitude" name="confLatitude" size="13" maxlength="9" value="<?php echo $configs['latitude'] ?>" />degrees (positive value for North, negative for South)</td>
     </tr>
     <tr>
-    <td align="left"><a class="tooltip2" href="#"><?php echo $lang['longitude'];?>:<span><b>Gateway Longitude</b>This is the longitude where the<br />gateway is located (positive<br />number for East, negative<br />number for West)</span></a></td>
-    <td align="left" colspan="2"><input type="text" name="confLongitude" size="13" maxlength="9" value="<?php echo $configs['longitude'] ?>" />degrees (positive value for East, negative for West)</td>
+    <td align="left"><a class="tooltip2" href="#"><?php echo $lang['longitude']; if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') { echo '<button type="button" onclick="getLocation()">Get</button>'; } ?>:<span><b>Gateway Longitude</b>This is the longitude where the<br />gateway is located (positive<br />number for East, negative<br />number for West)</span></a></td>
+    <td align="left" colspan="2"><input type="text" id="confLongitude" name="confLongitude" size="13" maxlength="9" value="<?php echo $configs['longitude'] ?>" />degrees (positive value for East, negative for West)</td>
     </tr>
     <tr>
     <td align="left"><a class="tooltip2" href="#"><?php echo $lang['town'];?>:<span><b>Gateway Town</b>The town where the gateway<br />is located</span></a></td>
@@ -1843,7 +2458,7 @@ else:
 	        <option<?php if ($configModem['Modem']['Hardware'] === 'mnnano-teensy') { echo ' selected="selected"';}?> value="mnnano-teensy">MicroNode Teensy (USB)</option>
 	        <option<?php if ($configModem['Modem']['Hardware'] === 'f4mgpio') { echo ' selected="selected"';}?> value="f4mgpio">MMDVM F4M-GPIO (GPIO)</option>
 	        <option<?php if ($configModem['Modem']['Hardware'] === 'mmdvmhshat') { echo ' selected="selected"';}?> value="mmdvmhshat">MMDVM_HS_Hat (DB9MAT & DF2ET) for Pi (GPIO)</option>
-	        <option<?php if ($configModem['Modem']['Hardware'] === 'mmdvmhshatd') { echo ' selected="selected"';}?> value="mmdvmhshatd">MMDVM_HS_Hat Dual (DB9MAT & DF2ET) for Pi (GPIO)</option>
+	        <option<?php if ($configModem['Modem']['Hardware'] === 'mmdvmhshatd') { echo ' selected="selected"';}?> value="mmdvmhshatd">MMDVM_HS_Dual_Hat (DB9MAT, DF2ET & DO7EN) for Pi (GPIO)</option>
 	        <option<?php if ($configModem['Modem']['Hardware'] === 'mmdvmmdohat') { echo ' selected="selected"';}?> value="mmdvmmdohat">MMDVM_HS_MDO Hat (BG3MDO) for Pi (GPIO)</option>
 	        <option<?php if ($configModem['Modem']['Hardware'] === 'mmdvmvyehat') { echo ' selected="selected"';}?> value="mmdvmvyehat">MMDVM_HS_NPi Hat (VR2VYE) for Nano Pi (GPIO)</option>
     </select></td>
@@ -2266,7 +2881,7 @@ fclose($dextraFile);
     </table>
 	<div><input type="button" value="<?php echo $lang['apply'];?>" onclick="submitform()" /><br /><br /></div>
 <?php } ?>
-<?php if (file_exists('/etc/dstar-radio.mmdvmhost') && $configmmdvm['System Fusion Network']['Enable'] == 1) {
+<?php if (file_exists('/etc/dstar-radio.mmdvmhost') && ($configmmdvm['System Fusion Network']['Enable'] == 1 || $configdmr2ysf['Enabled']['Enabled'] == 1 )) {
 $ysfHosts = fopen("/usr/local/etc/YSFHosts.txt", "r"); ?>
 	<div><b><?php echo $lang['ysf_config'];?></b></div>
     <table>
@@ -2281,27 +2896,32 @@ $ysfHosts = fopen("/usr/local/etc/YSFHosts.txt", "r"); ?>
         if (isset($configysfgateway['Network']['Startup'])) {
                 $testYSFHost = $configysfgateway['Network']['Startup'];
                 echo "      <option value=\"none\">None</option>\n";
-		if ($testYSFHost == 00002) {
-			echo "      <option value=\"00002\" selected=\"selected\">00002 - YSF2DMR - YSF2DMR Gateway</option>\n";
-		}
-		else {
-			echo "      <option value=\"00002\">00002 - YSF2DMR - YSF2DMR Gateway</option>\n";
-		}
-                }
+        	}
         else {
                 $testYSFHost = "none";
                 echo "      <option value=\"none\" selected=\"selected\">None</option>\n";
-		echo "      <option value=\"00002\">00002 - YSF2DMR - YSF2DMR Gateway</option>\n";
                 }
         while (!feof($ysfHosts)) {
                 $ysfHostsLine = fgets($ysfHosts);
                 $ysfHost = preg_split('/;/', $ysfHostsLine);
                 if ((strpos($ysfHost[0], '#') === FALSE ) && ($ysfHost[0] != '')) {
-                        if ($testYSFHost == $ysfHost[0]) { echo "      <option value=\"$ysfHost[0]\" selected=\"selected\">$ysfHost[0] - ".htmlspecialchars($ysfHost[1])." - ".htmlspecialchars($ysfHost[2])."</option>\n"; }
-			else { echo "      <option value=\"$ysfHost[0]\">$ysfHost[0] - ".htmlspecialchars($ysfHost[1])." - ".htmlspecialchars($ysfHost[2])."</option>\n"; }
+                        if ( ($testYSFHost == $ysfHost[0]) || ($testYSFHost == $ysfHost[1]) ) { echo "      <option value=\"$ysfHost[0],$ysfHost[1]\" selected=\"selected\">YSF$ysfHost[0] - ".htmlspecialchars($ysfHost[1])." - ".htmlspecialchars($ysfHost[2])."</option>\n"; }
+			else { echo "      <option value=\"$ysfHost[0],$ysfHost[1]\">YSF$ysfHost[0] - ".htmlspecialchars($ysfHost[1])." - ".htmlspecialchars($ysfHost[2])."</option>\n"; }
                 }
         }
         fclose($ysfHosts);
+	if (file_exists("/usr/local/etc/FCSHosts.txt")) {
+                $fcsHosts = fopen("/usr/local/etc/FCSHosts.txt", "r");
+                while (!feof($fcsHosts)) {
+                        $ysfHostsLine = fgets($fcsHosts);
+                        $ysfHost = preg_split('/;/', $ysfHostsLine);
+                        if ((strpos($ysfHost[0], '#') === FALSE ) && ($ysfHost[0] != '')) {
+                                if ( ($testYSFHost == $ysfHost[0]) || ($testYSFHost == $ysfHost[1]) ) { echo "      <option value=\"$ysfHost[0],$ysfHost[0]\" selected=\"selected\">$ysfHost[0] - ".htmlspecialchars($ysfHost[1])."</option>\n"; }
+                                else { echo "      <option value=\"$ysfHost[0],$ysfHost[0]\">$ysfHost[0] - ".htmlspecialchars($ysfHost[1])."</option>\n"; }
+                        }
+                }
+                fclose($fcsHosts);
+        }
         ?>
     </select></td>
     </tr>
@@ -2326,7 +2946,7 @@ $ysfHosts = fopen("/usr/local/etc/YSFHosts.txt", "r"); ?>
     <?php if (file_exists('/etc/dstar-radio.mmdvmhost') && $configysf2dmr['Enabled']['Enabled'] == 1) {
     $dmrMasterFile = fopen("/usr/local/etc/DMR_Hosts.txt", "r"); ?>
     <tr>
-      <td align="left"><a class="tooltip2" href="#"><?php echo $lang['dmr_id'];?>:<span><b>CCS7/DMR ID</b>Enter your CCS7 / DMR ID here</span></a></td>
+      <td align="left"><a class="tooltip2" href="#">(YSF2DMR)<?php echo $lang['dmr_id'];?>:<span><b>CCS7/DMR ID</b>Enter your CCS7 / DMR ID here</span></a></td>
       <td align="left" colspan="2"><input type="text" name="ysf2dmrId" size="13" maxlength="9" value="<?php if (isset($configysf2dmr['DMR Network']['Id'])) { echo $configysf2dmr['DMR Network']['Id']; } ?>" /></td>
     </tr>
     <tr>
@@ -2351,6 +2971,79 @@ $ysfHosts = fopen("/usr/local/etc/YSFHosts.txt", "r"); ?>
       <td align="left" colspan="2"><input type="text" name="ysf2dmrTg" size="13" maxlength="7" value="<?php if (isset($configysf2dmr['DMR Network']['StartupDstId'])) { echo $configysf2dmr['DMR Network']['StartupDstId']; } ?>" /></td>  
     </tr>
     <?php } ?>
+    <?php if (file_exists('/etc/dstar-radio.mmdvmhost') && $configysf2nxdn['Enabled']['Enabled'] == 1) { ?>
+    <tr>
+      <td align="left"><a class="tooltip2" href="#">(YSF2NXDN) NXDN ID:<span><b>NXDN ID</b>Enter your NXDN ID here</span></a></td>
+      <td align="left" colspan="2"><input type="text" name="ysf2nxdnId" size="13" maxlength="5" value="<?php if (isset($configysf2nxdn['NXDN Network']['Id'])) { echo $configysf2nxdn['NXDN Network']['Id']; } ?>" /></td>
+    </tr>
+    <tr>
+        <td align="left"><a class="tooltip2" href="#"><?php echo $lang['nxdn_startup_host'];?>:<span><b>NXDN Host</b>Set your prefered<br /> NXDN Host here</span></a></td>
+        <td style="text-align: left;"><select name="ysf2nxdnStartupDstId">
+<?php
+	$nxdnHosts = fopen("/usr/local/etc/NXDNHosts.txt", "r");
+	$testNXDNHost = $configysf2nxdn['NXDN Network']['StartupDstId'];
+	if ($testNXDNHost == "") { echo "      <option value=\"none\" selected=\"selected\">None</option>\n"; }
+        else { echo "      <option value=\"none\">None</option>\n"; }
+	if ($testNXDNHost == "10") { echo "      <option value=\"10\" selected=\"selected\">10 - Parrot</option>\n"; }
+        else { echo "      <option value=\"10\">10 - Parrot</option>\n"; }
+        while (!feof($nxdnHosts)) {
+                $nxdnHostsLine = fgets($nxdnHosts);
+                $nxdnHost = preg_split('/\s+/', $nxdnHostsLine);
+                if ((strpos($nxdnHost[0], '#') === FALSE ) && ($nxdnHost[0] != '')) {
+                        if ($testNXDNHost == $nxdnHost[0]) { echo "      <option value=\"$nxdnHost[0]\" selected=\"selected\">$nxdnHost[0] - $nxdnHost[1]</option>\n"; }
+                        else { echo "      <option value=\"$nxdnHost[0]\">$nxdnHost[0] - $nxdnHost[1]</option>\n"; }
+                }
+        }
+        fclose($nxdnHosts);
+?>
+        </select></td>
+      </tr>
+    <?php } ?>
+    <?php if (file_exists('/etc/dstar-radio.mmdvmhost') && $configysf2p25['Enabled']['Enabled'] == 1) { ?>
+    <tr>
+      <td align="left"><a class="tooltip2" href="#">(YSF2P25) <?php echo $lang['dmr_id'];?>:<span><b>DMR ID</b>Enter your CCS7 / DMR ID here</span></a></td>
+      <td align="left" colspan="2"><input type="text" name="ysf2p25Id" size="13" maxlength="7" value="<?php if (isset($configysf2p25['P25 Network']['Id'])) { echo $configysf2p25['P25 Network']['Id']; } ?>" /></td>
+    </tr>
+    <tr>
+      <td align="left"><a class="tooltip2" href="#"><?php echo $lang['p25_startup_host'];?>:<span><b>P25 Host</b>Set your prefered<br /> P25 Host here</span></a></td>
+      <td style="text-align: left;"><select name="ysf2p25StartupDstId">
+<?php
+	$p25Hosts = fopen("/usr/local/etc/P25Hosts.txt", "r");									       
+	$testP25Host = $configysf2p25['P25 Network']['StartupDstId'];
+	if ($testP25Host == "") { echo "      <option value=\"none\" selected=\"selected\">None</option>\n"; }
+        else { echo "      <option value=\"none\">None</option>\n"; }
+	if ($testP25Host == "10") { echo "      <option value=\"10\" selected=\"selected\">10 - Parrot</option>\n"; }
+        else { echo "      <option value=\"10\">10 - Parrot</option>\n"; }
+        while (!feof($p25Hosts)) {
+                $p25HostsLine = fgets($p25Hosts);
+                $p25Host = preg_split('/\s+/', $p25HostsLine);
+                if ((strpos($p25Host[0], '#') === FALSE ) && ($p25Host[0] != '')) {
+                        if ($testP25Host == $p25Host[0]) { echo "      <option value=\"$p25Host[0]\" selected=\"selected\">$p25Host[0] - $p25Host[1]</option>\n"; }
+                        else { echo "      <option value=\"$p25Host[0]\">$p25Host[0] - $p25Host[1]</option>\n"; }
+                }
+        }
+        fclose($p25Hosts);
+        if (file_exists('/usr/local/etc/P25HostsLocal.txt')) {
+		$p25Hosts2 = fopen("/usr/local/etc/P25HostsLocal.txt", "r");
+		while (!feof($p25Hosts2)) {
+                	$p25HostsLine2 = fgets($p25Hosts2);
+                	$p25Host2 = preg_split('/\s+/', $p25HostsLine2);
+                	if ((strpos($p25Host2[0], '#') === FALSE ) && ($p25Host2[0] != '')) {
+                        	if ($testP25Host == $p25Host2[0]) { echo "      <option value=\"$p25Host2[0]\" selected=\"selected\">$p25Host2[0] - $p25Host2[1]</option>\n"; }
+                        	else { echo "      <option value=\"$p25Host2[0]\">$p25Host2[0] - $p25Host2[1]</option>\n"; }
+                	}
+		}
+		fclose($p25Hosts2);
+	}
+        ?>
+    </select></td>
+    </tr>
+    <?php } ?>
+	    
+	    
+	    
+	    
+	    
     </table>
 	<div><input type="button" value="<?php echo $lang['apply'];?>" onclick="submitform()" /><br /><br /></div>
 <?php } ?>
@@ -2406,7 +3099,7 @@ $p25Hosts = fopen("/usr/local/etc/P25Hosts.txt", "r");
 	<div><input type="button" value="<?php echo $lang['apply'];?>" onclick="submitform()" /><br /><br /></div>
 <?php } ?>
 	
-<?php if (file_exists('/etc/dstar-radio.mmdvmhost') && $configmmdvm['NXDN Network']['Enable'] == 1) { ?>
+<?php if (file_exists('/etc/dstar-radio.mmdvmhost') && ($configmmdvm['NXDN Network']['Enable'] == 1 || $configdmr2nxdn['Enabled']['Enabled'] == 1) ) { ?>
 	<div><b><?php echo $lang['nxdn_config'];?></b></div>
     <table>
       <tr>
@@ -2416,8 +3109,28 @@ $p25Hosts = fopen("/usr/local/etc/P25Hosts.txt", "r");
       <tr>
         <td align="left"><a class="tooltip2" href="#"><?php echo $lang['nxdn_startup_host'];?>:<span><b>NXDN Host</b>Set your prefered<br /> NXDN Host here</span></a></td>
         <td style="text-align: left;"><select name="nxdnStartupHost">
-		<option value="176.9.1.168">D2FET Test Host - 176.9.1.168</option>
-		</select></td>
+<?php
+	if (file_exists('/etc/nxdngateway')) {
+		$nxdnHosts = fopen("/usr/local/etc/NXDNHosts.txt", "r");
+		$testNXDNHost = $confignxdngateway['Network']['Startup'];
+		if ($testNXDNHost == "") { echo "      <option value=\"none\" selected=\"selected\">None</option>\n"; }
+	        else { echo "      <option value=\"none\">None</option>\n"; }
+		if ($testNXDNHost == "10") { echo "      <option value=\"10\" selected=\"selected\">10 - Parrot</option>\n"; }
+	        else { echo "      <option value=\"10\">10 - Parrot</option>\n"; }
+	        while (!feof($nxdnHosts)) {
+	                $nxdnHostsLine = fgets($nxdnHosts);
+	                $nxdnHost = preg_split('/\s+/', $nxdnHostsLine);
+	                if ((strpos($nxdnHost[0], '#') === FALSE ) && ($nxdnHost[0] != '')) {
+	                        if ($testNXDNHost == $nxdnHost[0]) { echo "      <option value=\"$nxdnHost[0]\" selected=\"selected\">$nxdnHost[0] - $nxdnHost[1]</option>\n"; }
+	                        else { echo "      <option value=\"$nxdnHost[0]\">$nxdnHost[0] - $nxdnHost[1]</option>\n"; }
+	                }
+	        }
+	        fclose($nxdnHosts);
+	} else {
+		echo '<option value="176.9.1.168">D2FET Test Host - 176.9.1.168</option>'."\n";
+	}
+?>
+        </select></td>
       </tr>
     <?php if ($configmmdvm['NXDN']['RAN']) { ?>
       <tr>
@@ -2485,6 +3198,18 @@ $p25Hosts = fopen("/usr/local/etc/P25Hosts.txt", "r");
       <td>Note: Reboot Required if changed</td>
     </tr>
     <?php } ?>
+    <tr>
+      <td align="left"><a class="tooltip2" href="#">uPNP:<span><b>uPNP</b>Do you want your Pi<br />to create its own Firewall rules<br />for use with D-Star.</span></a></td>
+      <?php
+        $testupnp = exec('grep "pistar-upnp.service" /etc/crontab | cut -c 1');
+	if (substr($testupnp, 0, 1) === '#') {
+	  echo "   <td align=\"left\" colspan=\"2\"><input type=\"radio\" name=\"uPNP\" value=\"ON\" />On <input type=\"radio\" name=\"uPNP\" value=\"OFF\" checked=\"checked\" />Off</td>\n";
+	}
+        else {
+	  echo "   <td align=\"left\" colspan=\"2\"><input type=\"radio\" name=\"uPNP\" value=\"ON\" checked=\"checked\" />On <input type=\"radio\" name=\"uPNP\" value=\"OFF\" />Off</td>\n";
+	}
+      ?>
+    </tr>
     </table>
 	<div><input type="button" value="<?php echo $lang['apply'];?>" onclick="submitform()" /></div>
     </form>
@@ -2503,7 +3228,7 @@ $p25Hosts = fopen("/usr/local/etc/P25Hosts.txt", "r");
 //	$strHWAddress = $result['1'];
 //
 //	if ( isset($strHWAddress) ) {
-	if ( file_exists('/sys/class/net/wlan0') || file_exists('/sys/class/net/wlan1') ) {
+	if ( file_exists('/sys/class/net/wlan0') || file_exists('/sys/class/net/wlan1') || file_exists('/sys/class/net/wlan0_ap') ) {
 echo '
 <br />
     <b>'.$lang['wifi_config'].'</b>

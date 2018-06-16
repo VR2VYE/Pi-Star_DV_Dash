@@ -24,7 +24,7 @@ require_once('../config/version.php');
 <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
     <meta http-equiv="Expires" content="0" />
     <title>Pi-Star - Digital Voice Dashboard - Expert Editor</title>
-    <link rel="stylesheet" type="text/css" href="../css/ircddb.css?version=1.3" />
+    <link rel="stylesheet" type="text/css" href="../css/pistar-css.php" />
   </head>
   <body>
   <div class="container">
@@ -57,7 +57,8 @@ if($_POST) {
 
 		foreach($data as $section=>$values) {
 			// UnBreak special cases
-			$section = str_replace("_", ".", $section);
+			if (strpos($section, 'aprs') !== false) { $section = str_replace("_", ".", $section); }
+			else { $section = str_replace("_", " ", $section); $section = str_replace(".", " ", $section); }
 			$content .= "[".$section."]\n";
 			//append the values
 			foreach($values as $key=>$value) {
