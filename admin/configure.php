@@ -101,6 +101,12 @@ if (file_exists('/etc/nxdn2dmr')) {
 	if (fopen($nxdn2dmrConfigFile,'r')) { $confignxdn2dmr = parse_ini_file($nxdn2dmrConfigFile, true); }
 }
 
+// DAPNet Gateway config
+if (file_exists('/etc/dapnetgateway')) {
+	$configDAPNetConfigFile = '/etc/dapnetgateway';
+	if (fopen($configDAPNetConfigFile,'r')) { $configdapnetgw = parse_ini_file($configDAPNetConfigFile, true); }
+}
+
 // Load the dmrgateway config file
 $dmrGatewayConfigFile = '/etc/dmrgateway';
 if (fopen($dmrGatewayConfigFile,'r')) { $configdmrgateway = parse_ini_file($dmrGatewayConfigFile, true); }
@@ -263,6 +269,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	system('sudo systemctl stop dmr2ysf.service > /dev/null 2>/dev/null &');		// DMR2YSF
 	system('sudo systemctl stop dmr2nxdn.service > /dev/null 2>/dev/null &');		// DMR2YSF
 	system('sudo systemctl stop dmrgateway.service > /dev/null 2>/dev/null &');		// DMRGateway
+	system('sudo systemctl stop dapnetgateway.service > /dev/null 2>/dev/null &');		// DAPNetGateway
 
 	echo "<table>\n";
 	echo "<tr><th>Working...</th></tr>\n";
@@ -480,6 +487,24 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	system($rollTimeserverBandC);
 	system($rollTimeserverBandD);
 	system($rollTimeserverBandE);
+
+	// Set the POCSAG Frequency
+	if (empty($_POST['pocsagFrequency']) != TRUE ) {
+	  $newPocsagFREQ = preg_replace('/[^0-9\.]/', '', $_POST['pocsagFrequency']);
+	  $newPocsagFREQ = str_pad(str_replace(".", "", $newPocsagFREQ), 9, "0");
+	  $newPocsagFREQ = mb_strimwidth($newPocsagFREQ, 0, 9);
+	  $configmmdvm['POCSAG']['Frequency'] = $newPocsagFREQ;
+	}
+
+	// Set the POCSAG AuthKey
+	if (empty($_POST['pocsagAuthKey']) != TRUE ) {
+	  $configdapnetgw['DAPNET']['AuthKey'] = escapeshellcmd($_POST['pocsagAuthKey']);
+	}
+	
+	// Set the POCSAG Callsign
+	if (empty($_POST['pocsagCallsign']) != TRUE ) {
+		$configdapnetgw['General']['Callsign'] = strtoupper(escapeshellcmd($_POST['pocsagCallsign']));
+	}
 
 	// Set the Frequency for Duplex
 	if (empty($_POST['confFREQtx']) != TRUE && empty($_POST['confFREQrx']) != TRUE ) {
@@ -1455,6 +1480,12 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 			$configdmrgateway['DMR Network 3']['Enabled'] = "0";
 		}
 	}
+	
+	// Set POCSAG Mode
+	if (empty($_POST['MMDVMModePOCSAG']) != TRUE ) {
+          if (escapeshellcmd($_POST['MMDVMModePOCSAG']) == 'ON' )  { $configmmdvm['POCSAG']['Enable'] = "1"; $configmmdvm['POCSAG Network']['Enable'] = "1"; }
+          if (escapeshellcmd($_POST['MMDVMModePOCSAG']) == 'OFF' ) { $configmmdvm['POCSAG']['Enable'] = "0"; $configmmdvm['POCSAG Network']['Enable'] = "0"; }
+	}
 
 	// Set the MMDVMHost Display Type
 	if  (empty($_POST['mmdvmDisplayType']) != TRUE ) {
@@ -1698,6 +1729,32 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 		$configysfgateway['FCS Network']['Port'] = "42001";
 		$configysfgateway['FCS Network']['Rooms'] = "/usr/local/etc/FCSHosts.txt";
 	}
+	
+	// Add the DAPNet Config
+	if (!isset($configdapnetgw['General']['Callsign'])) { $configdapnetgw['General']['Callsign'] = "M1ABC"; }
+	if (!isset($configdapnetgw['General']['RptAddress'])) { $configdapnetgw['General']['RptAddress'] = "127.0.0.1"; }
+	if (!isset($configdapnetgw['General']['RptPort'])) { $configdapnetgw['General']['RptPort'] = "3800"; }
+	if (!isset($configdapnetgw['General']['LocalAddress'])) { $configdapnetgw['General']['LocalAddress'] = "127.0.0.1"; }
+	if (!isset($configdapnetgw['General']['LocalPort'])) { $configdapnetgw['General']['LocalPort'] = "4800"; }
+	if (!isset($configdapnetgw['General']['Daemon'])) { $configdapnetgw['General']['Daemon'] = "0"; }
+	if (!isset($configdapnetgw['Log']['DisplayLevel'])) { $configdapnetgw['Log']['DisplayLevel'] = "0"; }
+	if (!isset($configdapnetgw['Log']['FileLevel'])) { $configdapnetgw['Log']['FileLevel'] = "1"; }
+	if (!isset($configdapnetgw['Log']['FilePath'])) { $configdapnetgw['Log']['FilePath'] = "/var/log/pi-star"; }
+	if (!isset($configdapnetgw['Log']['FileRoot'])) { $configdapnetgw['Log']['FileRoot'] = "DAPNETGateway"; }
+	if (!isset($configdapnetgw['DAPNET']['Address'])) { $configdapnetgw['DAPNET']['Address'] = "dapnet.afu.rwth-aachen.de"; }
+	if (!isset($configdapnetgw['DAPNET']['Port'])) { $configdapnetgw['DAPNET']['Port'] = "43434"; }
+	if (!isset($configdapnetgw['DAPNET']['AuthKey'])) { $configdapnetgw['DAPNET']['AuthKey'] = "TOPSECRET"; }
+	if (!isset($configdapnetgw['DAPNET']['SuppressTimeWhenBusy'])) { $configdapnetgw['DAPNET']['SuppressTimeWhenBusy'] = "1"; }
+	if (!isset($configdapnetgw['DAPNET']['Debug'])) { $configdapnetgw['DAPNET']['Debug'] = "0"; }
+	if (!isset($configmmdvm['POCSAG']['Enable'])) { $configmmdvm['POCSAG']['Enable'] = "0"; }
+	if (!isset($configmmdvm['POCSAG']['Frequency'])) { $configmmdvm['POCSAG']['Frequency'] = "439987500"; }
+	if (!isset($configmmdvm['POCSAG Network']['Enable'])) { $configmmdvm['POCSAG Network']['Enable'] = "0"; }
+	if (!isset($configmmdvm['POCSAG Network']['LocalAddress'])) { $configmmdvm['POCSAG Network']['LocalAddress'] = "127.0.0.1"; }
+	if (!isset($configmmdvm['POCSAG Network']['LocalPort'])) { $configmmdvm['POCSAG Network']['LocalPort'] = "3800"; }
+	if (!isset($configmmdvm['POCSAG Network']['GatewayAddress'])) { $configmmdvm['POCSAG Network']['GatewayAddress'] = "127.0.0.1"; }
+	if (!isset($configmmdvm['POCSAG Network']['GatewayPort'])) { $configmmdvm['POCSAG Network']['GatewayPort'] = "4800"; }
+	if (!isset($configmmdvm['POCSAG Network']['ModeHang'])) { $configmmdvm['POCSAG Network']['ModeHang'] = "2"; }
+	if (!isset($configmmdvm['POCSAG Network']['Debug'])) { $configmmdvm['POCSAG Network']['Debug'] = "0"; }
 
 	// Create the hostfiles.nodextra file if required
 	if (empty($_POST['confHostFilesNoDExtra']) != TRUE ) {
@@ -2011,6 +2068,42 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
                 }
         }
 
+	// DAPNet Gateway Config file wragling
+	$dapnetContent = "";
+        foreach($configdapnetgw as $dapnetSection=>$dapnetValues) {
+                // UnBreak special cases
+                $dapnetSection = str_replace("_", " ", $dapnetSection);
+                $dapnetContent .= "[".$dapnetSection."]\n";
+                // append the values
+                foreach($dapnetValues as $dapnetKey=>$dapnetValue) {
+                        $dapnetContent .= $dapnetKey."=".$dapnetValue."\n";
+                        }
+                        $dapnetContent .= "\n";
+                }
+        if (!$handledapnetconfig = fopen('/tmp/lsHWie734HS.tmp', 'w')) {
+                return false;
+        }
+        if (!is_writable('/tmp/lsHWie734HS.tmp')) {
+          echo "<br />\n";
+          echo "<table>\n";
+          echo "<tr><th>ERROR</th></tr>\n";
+          echo "<tr><td>Unable to write configuration file(s)...</td><tr>\n";
+          echo "<tr><td>Please wait a few seconds and retry...</td></tr>\n";
+          echo "</table>\n";
+          unset($_POST);
+          echo '<script type="text/javascript">setTimeout(function() { window.location=window.location;},5000);</script>';
+          die();
+        }
+        else {
+                $success = fwrite($handledapnetconfig, $dapnetContent);
+                fclose($handledapnetconfig);
+                if (intval(exec('cat /tmp/lsHWie734HS.tmp | wc -l')) > 19 ) {
+                        exec('sudo mv /tmp/lsHWie734HS.tmp /etc/dapnetgateway');		// Move the file back
+                        exec('sudo chmod 644 /etc/dapnetgateway');				// Set the correct runtime permissions
+                        exec('sudo chown root:root /etc/dapnetgateway');			// Set the owner
+                }
+        }
+
 	// dmrgateway config file wrangling
 	$dmrgwContent = "";
         foreach($configdmrgateway as $dmrgwSection=>$dmrgwValues) {
@@ -2120,6 +2213,7 @@ if ($_SERVER["PHP_SELF"] == "/admin/configure.php") {
 	system('sudo systemctl start dmr2ysf.service > /dev/null 2>/dev/null &');		// DMR2YSF
 	system('sudo systemctl start dmr2nxdn.service > /dev/null 2>/dev/null &');		// DMR2NXDN
 	system('sudo systemctl start dmrgateway.service > /dev/null 2>/dev/null &');		// DMRGateway
+	system('sudo systemctl start dapnetgateway.service > /dev/null 2>/dev/null &');		// DAPNetGateway
 
 	// Set the system timezone
 	$rollTimeZone = 'sudo timedatectl set-timezone '.escapeshellcmd($_POST['systemTimezone']);
@@ -2189,6 +2283,7 @@ else:
     <input type="hidden" name="MMDVMModeYSF2P25" value="OFF" />
     <input type="hidden" name="MMDVMModeDMR2YSF" value="OFF" />
     <input type="hidden" name="MMDVMModeDMR2NXDN" value="OFF" />
+    <input type="hidden" name="MMDVMModePOCSAG" value="OFF" />
 	<div><b><?php echo $lang['mmdvmhost_config'];?></b></div>
     <table>
     <tr>
@@ -2328,6 +2423,20 @@ else:
 	}
     ?>
     <td>Uses 7 prefix on DMRGateway</td>
+    </tr>
+    <?php } ?>
+    <?php if (file_exists('/etc/dapnetgateway')) { ?>
+    <tr>
+    <td align="left"><a class="tooltip2" href="#">POCSAG:<span><b>POCSAG Mode</b>Turn on POCSAG Features</span></a></td>
+    <?php
+	if ( $configmmdvm['POCSAG']['Enable'] == 1 ) {
+		echo "<td align=\"left\"><div class=\"switch\"><input id=\"toggle-pocsag\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModePOCSAG\" value=\"ON\" checked=\"checked\" /><label for=\"toggle-pocsag\"></label></div></td>\n";
+		}
+	else {
+		echo "<td align=\"left\"><div class=\"switch\"><input id=\"toggle-pocsag\" class=\"toggle toggle-round-flat\" type=\"checkbox\" name=\"MMDVMModePOCSAG\" value=\"ON\" /><label for=\"toggle-pocsag\"></label></div></td>\n";
+	}
+    ?>
+    <td>POCSAG Paging Features</td>
     </tr>
     <?php } ?>
     <tr>
@@ -3141,7 +3250,30 @@ $p25Hosts = fopen("/usr/local/etc/P25Hosts.txt", "r");
     </table>
 	<div><input type="button" value="<?php echo $lang['apply'];?>" onclick="submitform()" /><br /><br /></div>
 <?php } ?>
-	
+
+<?php if ( $configmmdvm['POCSAG']['Enable'] == 1 ) { ?>
+	<div><b><?php echo $lang['pocsag_config'];?></b></div>
+    <table>
+      <tr>
+        <th width="200"><a class="tooltip" href="#"><?php echo $lang['setting'];?><span><b>Setting</b></span></a></th>
+        <th colspan="2"><a class="tooltip" href="#"><?php echo $lang['value'];?><span><b>Value</b>The current value from the<br />configuration files</span></a></th>
+      </tr>
+      <tr>
+        <td align="left"><a class="tooltip2" href="#"><?php echo $lang['node_call'];?> POCSAG:<span><b>POCSAG Callsign</b>Set your paging callsign<br /> here</span></a></td>
+        <td align="left"><input type="text" name="pocsagCallsign" size="13" maxlength="12" value="<?php echo $configdapnetgw['General']['Callsign'];?>" /></td>
+      </tr>
+      <tr>
+        <td align="left"><a class="tooltip2" href="#"><?php echo $lang['radio_freq'];?> POCSAG:<span><b>POCSAG Frequency</b>Set your paging frequency<br /> here</span></a></td>
+        <td align="left"><input type="text" name="pocsagFrequency" size="13" maxlength="12" value="<?php echo number_format($configmmdvm['POCSAG']['Frequency'], 0, '.', '.');?>" /></td>
+      </tr>
+      <tr>
+        <td align="left"><a class="tooltip2" href="#">DAPNET AuthKey:<span><b>DAPNET AuthKey</b>Set your DAPNET AuthKey<br /> here</span></a></td>
+        <td align="left"><input type="password" name="pocsagAuthKey" size="30" maxlength="50" value="<?php echo $configdapnetgw['DAPNET']['AuthKey'];?>" /></td>
+      </tr>
+    </table>
+	<div><input type="button" value="<?php echo $lang['apply'];?>" onclick="submitform()" /><br /><br /></div>
+<?php } ?>	
+
 	<div><b><?php echo $lang['fw_config'];?></b></div>
     <table>
     <tr>

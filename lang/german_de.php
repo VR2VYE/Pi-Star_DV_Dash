@@ -27,6 +27,7 @@ $lang = array (
   "ysf_config"                  =>  "Yaesu System Fusion Konfiguration",
   "p25_config"                  =>  "P25 Konfiguration",
   "nxdn_config"                 =>  "NXDN Konfiguration",
+  "pocsag_config"               =>  "POCSAG Konfiguration",
   "wifi_config"                 =>  "Wlan Konfiguration",
   "fw_config"                   =>  "Firewall Konfiguration",
   "remote_access_pw"            =>  "Fernzugriff",
@@ -129,7 +130,7 @@ $lang = array (
   "utot"                        =>  "UTOT",       // Short for User Timeout
   "gtot"                        =>  "GTOT",       // Short for Group Timeout
   // Dashboard Front Page / Admin - Section Headders
-  "last_heard_list"             =>  "Letzten 20 Rufzeichen, die gerh&ouml;rt wurden",
+  "last_heard_list"             =>  "Letzten 20 Rufzeichen, die geh&ouml;rt wurden",
   "local_tx_list"               =>  "Letzten 20 Rufzeichen, die dieses Gateway nutzten",
   "active_starnet_groups"       =>  "Aktive Starnet Gruppen",
   "active_starnet_members"      =>  "Aktive Starnet Gruppen Mitglieder",
