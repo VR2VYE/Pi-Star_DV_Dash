@@ -215,6 +215,7 @@ $MYCALL=strtoupper($callsign);
  <a href="/admin/power.php" style="color: #ffffff;"><?php echo $lang['power'];?></a> |
  <a href="/admin/update.php" style="color: #ffffff;"><?php echo $lang['update'];?></a> |
  <a href="/admin/config_backup.php" style="color: #ffffff;"><?php echo $lang['backup_restore'];?></a> |
+ <a href="/admin/nextion.php" style="color: #ffffff;"><?php echo $lang['nextion'];?></a>	
  <a href="javascript:factoryReset();" style="color: #ffffff;"><?php echo $lang['factory_reset'];?></a>
 </p>
 </div>
