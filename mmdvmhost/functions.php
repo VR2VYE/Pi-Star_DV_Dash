@@ -369,6 +369,7 @@ function getDVModemFirmware() {
 // M: 2017-04-18 08:00:42.337 NXDN, received RF end of transmission, 0.4 seconds, BER: 0.0%
 // M: 2017-04-18 08:00:43.728 NXDN, received network transmission from 10999 to TG 65000
 // M: 2017-04-18 08:00:45.172 NXDN, network end of transmission, 1.8 seconds, 0% packet loss
+// M: 2018-07-13 10:35:18.411 POCSAG, transmitted 1 frame(s) of data from 1 message(s)
 function getHeardList($logLines) {
 	//array_multisort($logLines,SORT_DESC);
 	$heardList = array();
@@ -396,6 +397,7 @@ function getHeardList($logLines) {
         $nxdnloss	= "";
         $nxdnber	= "";
 	$nxdnrssi	= "";
+	$pocsagduration	= "";
 	foreach ($logLines as $logLine) {
 		$duration	= "";
 		$loss		= "";
@@ -424,7 +426,7 @@ function getHeardList($logLines) {
                         continue;
 		}
 
-		if(strpos($logLine, "end of") || strpos($logLine, "watchdog has expired") || strpos($logLine, "ended RF data") || strpos($logLine, "ended network") || strpos($logLine, "RF user has timed out") || strpos($logLine, "transmission lost")) {
+		if(strpos($logLine, "end of") || strpos($logLine, "watchdog has expired") || strpos($logLine, "ended RF data") || strpos($logLine, "ended network") || strpos($logLine, "RF user has timed out") || strpos($logLine, "transmission lost") || strpos($logLine, "POCSAG")) {
 			$lineTokens = explode(", ",$logLine);
 			if (array_key_exists(2,$lineTokens)) {
 				$duration = strtok($lineTokens[2], " ");
@@ -508,6 +510,9 @@ function getHeardList($logLines) {
 						$nxdnber	= $ber;
 						$nxdnrssi	= $rssi;
 						break;
+					case "POCSAG":
+						$pocsagduration	= "";
+						break;						
 				}
 			}
 		}
@@ -529,7 +534,7 @@ function getHeardList($logLines) {
 		$target = substr($logLine, strpos($logLine, "to") + 3);
 		//$target = preg_replace('!\s+!', ' ', $target);
 		$source = "RF";
-		if (strpos($logLine,"network") > 0 ) {
+		if (strpos($logLine,"network") > 0 || strpos($logLine,"POCSAG") > 0) {
 			$source = "Net";
 		}
 
@@ -574,6 +579,13 @@ function getHeardList($logLines) {
                 		$ber		= $nxdnber;
 				$rssi		= $nxdnrssi;
                 		break;
+			case "POCSAG":
+				$callsign	= "DAPNET";
+				$target		= "DAPNET User";
+				$duration	= "0.0";
+				$loss		= "0%";
+                		$ber		= "0.0%";
+				break;
 		}
 
 		// Callsign or ID should be less than 11 chars long, otherwise it could be errorneous
@@ -595,7 +607,7 @@ function getLastHeard($logLines) {
 	$heardList = getHeardList($logLines);
 	$counter = 0;
 	foreach ($heardList as $listElem) {
-		if ( ($listElem[1] == "D-Star") || ($listElem[1] == "YSF") || ($listElem[1] == "P25") || ($listElem[1] == "NXDN") || (startsWith($listElem[1], "DMR")) ) {
+		if ( ($listElem[1] == "D-Star") || ($listElem[1] == "YSF") || ($listElem[1] == "P25") || ($listElem[1] == "NXDN") || ($listElem[1] == "POCSAG") || (startsWith($listElem[1], "DMR")) ) {
 			if(!(array_search($listElem[2]."#".$listElem[1].$listElem[3], $heardCalls) > -1)) {
 				array_push($heardCalls, $listElem[2]."#".$listElem[1].$listElem[3]);
 				array_push($lastHeard, $listElem);
@@ -657,6 +669,9 @@ function getActualMode($metaLastHeard, $mmdvmconfigs) {
 		}
 		else if ($source == "Net" && $mode === "NXDN") {
 			$hangtime = getConfigItem("NXDN Network", "ModeHang", $mmdvmconfigs);
+		}
+		else if ($source == "Net" && $mode === "POCSAG") {
+			$hangtime = getConfigItem("POCSAG Network", "ModeHang", $mmdvmconfigs);
 		}
 		else {
 			$hangtime = getConfigItem("General", "RFModeHang", $mmdvmconfigs);
